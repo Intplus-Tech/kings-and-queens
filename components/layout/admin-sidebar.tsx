@@ -14,12 +14,12 @@ import {
 
 export function AdminSidebar() {
   return (
-    <Sidebar collapsible="icon" className="border-r bg-white">
+    <Sidebar collapsible="icon" className="bg-background text-foreground">
       <SidebarHeader className="border-b p-6">
         <div className="flex items-center gap-3">
           <Crown className="h-8 w-8 text-red-600" />
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Kings & Queens</h2>
+            <h2 className="text-lg font-bold">Kings & Queens</h2>
             <p className="text-sm text-gray-500">Admin Portal</p>
           </div>
         </div>

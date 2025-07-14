@@ -1,7 +1,7 @@
 import type React from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AdminSidebar } from "@/components/layout/admin-sidebar"
-import { DashboardHeader } from "@/components/layout/dashboard-header"
+import { AdminHeader } from "@/components/layout/admin-header"
 
 export default function AdminLayout({
   children,
@@ -10,13 +10,11 @@ export default function AdminLayout({
 }) {
   return (
     <SidebarProvider>
-      <div className="flex">
-        <AdminSidebar />
-        <SidebarInset>
-          <DashboardHeader userRole="admin" />
-          <main className="flex-1 p-6">{children}</main>
-        </SidebarInset>
-      </div>
+      <AdminSidebar />
+      <SidebarInset>
+        <AdminHeader userRole="admin" />
+        <main className="flex-1 p-6">{children}</main>
+      </SidebarInset>
     </SidebarProvider>
   )
 }

@@ -14,13 +14,13 @@ import {
 
 export function PlayerSidebar() {
   return (
-    <Sidebar collapsible="icon" className="border-r bg-white">
+    <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="border-b p-6">
         <div className="flex items-center gap-3">
           <Crown className="h-8 w-8 text-blue-600" />
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Kings & Queens</h2>
-            <p className="text-sm text-gray-500">Player Portal</p>
+            <h2 className="text-lg font-bold">Kings & Queens</h2>
+            <p className="text-sm text-muted-foreground">Player Portal</p>
           </div>
         </div>
       </SidebarHeader>

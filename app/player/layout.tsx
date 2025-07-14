@@ -1,7 +1,7 @@
 import type React from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { PlayerSidebar } from "@/components/layout/player-sidebar"
-import { DashboardHeader } from "@/components/layout/dashboard-header"
+import { PlayerHeader } from "@/components/layout/player-header"
 
 export default function PlayerLayout({
   children,
@@ -10,13 +10,11 @@ export default function PlayerLayout({
 }) {
   return (
     <SidebarProvider>
-      <div className="flex">
-        <PlayerSidebar />
-        <SidebarInset>
-          <DashboardHeader userRole="player" />
-          <main className="flex-1 p-6">{children}</main>
-        </SidebarInset>
-      </div>
+      <PlayerSidebar />
+      <SidebarInset>
+        <PlayerHeader userRole="player" />
+        <main className="flex-1 p-6">{children}</main>
+      </SidebarInset>
     </SidebarProvider>
   )
 }
