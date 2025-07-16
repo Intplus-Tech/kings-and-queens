@@ -17,21 +17,19 @@ export function CoordinatorSidebar() {
     <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="border-b p-6">
         <div className="flex items-center gap-3">
-          <Crown className="h-8 w-8 text-green-600" />
           <div>
-            <h2 className="text-lg font-bold">Kings & Queens</h2>
-            <p className="text-sm text-muted-foreground">Coordinator Portal</p>
+            <h2 className="text-2xl font-bold text-primary">Kings & Queens</h2>
+            <p className="text-sm text-muted-foreground">Maryland Int’l School</p>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Dashboard">
+              <SidebarMenuItem className="">
+                <SidebarMenuButton asChild tooltip="Dashboard" className="h-[60px] bg-[#010B11]">
                   <a href="/coordinator" className="flex items-center gap-3">
                     <Home className="h-4 w-4" />
                     <span>Dashboard</span>
@@ -40,16 +38,17 @@ export function CoordinatorSidebar() {
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Team Management">
+                <SidebarMenuButton asChild tooltip="Team Management" className="h-[60px] bg-[#010B11]">
                   <a href="/coordinator/teams" className="flex items-center gap-3">
-                    <Users className="h-4 w-4" />
+                    {/* <Users className="h-4 w-4" /> */}
+                    <img src="/team-icon.svg" alt="Team Icon" className="h-4 w-4" />
                     <span>Team Management</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Tournaments">
+                <SidebarMenuButton asChild tooltip="Tournaments" className="h-[60px] bg-[#010B11]">
                   <a href="/coordinator/tournaments" className="flex items-center gap-3">
                     <Calendar className="h-4 w-4" />
                     <span>Tournaments</span>
@@ -58,7 +57,7 @@ export function CoordinatorSidebar() {
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Reports">
+                <SidebarMenuButton asChild tooltip="Reports" className="h-[60px] bg-[#010B11]">
                   <a href="/coordinator/reports" className="flex items-center gap-3">
                     <BarChart3 className="h-4 w-4" />
                     <span>Reports</span>
@@ -67,10 +66,18 @@ export function CoordinatorSidebar() {
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Settings">
+                <SidebarMenuButton asChild tooltip="Settings" className="h-[60px] bg-[#010B11]">
                   <a href="/coordinator/settings" className="flex items-center gap-3">
                     <Settings className="h-4 w-4" />
                     <span>Settings</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Settings" className="h-[60px]">
+                  <a href="/coordinator/settings" className="flex items-center gap-3">
+                    <Settings className="h-4 w-4 text-red-500" />
+                    <span className="text-red-500 font-bold">Logout</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>

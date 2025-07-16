@@ -1,17 +1,36 @@
-export default function CoordinatorTournaments() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tournament Management</h1>
-        <p className="text-gray-600">Create and manage chess tournaments</p>
-      </div>
+"use client";
+import { Button } from "@/components/ui/button";
+import MatchesTable from "../components/MatchesTable";
+import { useState } from "react";
+import PastResults from "../components/pastResults";
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Active Tournaments</h2>
-          <p className="text-gray-600">Tournament management interface will appear here</p>
-        </div>
+export default function CoordinatorTournaments() {
+  const [Fixtures, SetFixtures] = useState(true);
+
+  return (
+    <div className='space-y-6'>
+      <div className='flex gap-2  justify-center items-center bg-gray-600'>
+        <button
+         
+          className={
+            ` w-1/2 bg-gray-600 hover:bg-none p-2 border rounded border-transparent ` +
+            (Fixtures ? "bg-[#F39F12]" : "")
+          }
+          onClick={() => SetFixtures(true)}
+        >
+          Fixtures
+        </button>
+        <button
+          className={
+            `w-1/2 bg-gray-600 hover:bg-none p-2 border rounded border-transparent ` +
+            (!Fixtures ? "bg-[#F39F12]" : "")
+          }
+          onClick={() => SetFixtures(false)}
+        >
+          Past results
+        </button>
       </div>
+      <div>{Fixtures ? <MatchesTable /> : <PastResults />}</div>
     </div>
-  )
+  );
 }

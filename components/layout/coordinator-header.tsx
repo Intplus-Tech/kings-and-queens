@@ -5,15 +5,16 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 
 interface CoordinatorHeaderProps {
-  userRole: "player" | "coordinator" | "admin"
+  userRole?: "player" | "coordinator" | "admin" | "Dashboard";
 }
 
 export function CoordinatorHeader({ userRole }: CoordinatorHeaderProps) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4  bg-[#1F2124]">
       <div className="flex items-center justify-between w-full">
         <div>
-          <h1 className="text-xl font-semibold capitalize">{userRole} Dashboard</h1>
+          <h1 className="text-2xl font-bold capitalize mb-2 mt-3">{userRole}</h1>
+          <p>Welcome Back joe! | Ojada English School</p>
         </div>
 
         <div className="flex items-center gap-4">
