@@ -13,7 +13,7 @@ export default function CreateTeamModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <p className="text-yellow-400 py-2 underline cursor-pointer">Request Match Reschedule</p>
+        <p className="text-yellow-400 py-2  cursor-pointer">Request Match Reschedule</p>
       </DialogTrigger>
       <DialogContent className="max-w-3xl p-7 overflow-auto h-full bg-[#1C1C1E] text-white rounded-xl border border-gray-700">
         <DialogHeader>

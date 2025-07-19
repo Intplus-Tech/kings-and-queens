@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { CoordinatorHeader } from "@/components/layout/coordinator-header";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("school-information");
@@ -28,7 +29,9 @@ export default function SettingsPage() {
 
   return (
     <div className='min-h-screen text-white'>
-      <div className='flex'>
+      <CoordinatorHeader userRole='Settings' />
+
+      <div className='flex mt-4'>
         {/* Sidebar */}
         <div className='w-64 min-h-screen p-1'>
           <nav className='space-y-2'>
@@ -62,18 +65,18 @@ export default function SettingsPage() {
                   >
                     School Name
                   </Label>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Input
-                    id='schoolName'
-                    placeholder='Enter school name'
-                    className='bg-[#2C2C2E] text-white border-gray-600'
-                  />
-                   <img
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Input
+                      id='schoolName'
+                      placeholder='Enter school name'
+                      className='bg-[#2C2C2E] text-white border-gray-600'
+                    />
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
                     />
-                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -83,22 +86,22 @@ export default function SettingsPage() {
                   >
                     School Type
                   </Label>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Select>
-                    <SelectTrigger className='bg-[#2C2C2E] text-white border-gray-600'>
-                      <SelectValue placeholder='Select school type' />
-                    </SelectTrigger>
-                    <SelectContent className='bg-[#2C2C2E] text-white border-gray-600'>
-                      <SelectItem value='primary'>Primary School</SelectItem>
-                      <SelectItem value='secondary'>
-                        Secondary School
-                      </SelectItem>
-                      <SelectItem value='tertiary'>
-                        Tertiary Institution
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                   <img
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Select>
+                      <SelectTrigger className='bg-[#2C2C2E] text-white border-gray-600'>
+                        <SelectValue placeholder='Select school type' />
+                      </SelectTrigger>
+                      <SelectContent className='bg-[#2C2C2E] text-white border-gray-600'>
+                        <SelectItem value='primary'>Primary School</SelectItem>
+                        <SelectItem value='secondary'>
+                          Secondary School
+                        </SelectItem>
+                        <SelectItem value='tertiary'>
+                          Tertiary Institution
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
@@ -146,18 +149,18 @@ export default function SettingsPage() {
                   >
                     Phone
                   </Label>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Input
-                    id='schoolPhone'
-                    placeholder='Enter phone number'
-                    className='bg-[#2C2C2E] text-white border-gray-600'
-                  />
-                   <img
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Input
+                      id='schoolPhone'
+                      placeholder='Enter phone number'
+                      className='bg-[#2C2C2E] text-white border-gray-600'
+                    />
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
                     />
-                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -167,19 +170,19 @@ export default function SettingsPage() {
                   >
                     School Email
                   </Label>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Input
-                    id='schoolEmail'
-                    type='email'
-                    placeholder='Enter school email'
-                    className='bg-[#2C2C2E] text-white border-gray-600'
-                  />
-                   <img
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Input
+                      id='schoolEmail'
+                      type='email'
+                      placeholder='Enter school email'
+                      className='bg-[#2C2C2E] text-white border-gray-600'
+                    />
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
                     />
-                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -189,18 +192,18 @@ export default function SettingsPage() {
                   >
                     Website
                   </Label>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Input
-                    id='website'
-                    placeholder='WWW.'
-                    className='bg-[#2C2C2E] text-white border-gray-600'
-                  />
-                   <img
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Input
+                      id='website'
+                      placeholder='WWW.'
+                      className='bg-[#2C2C2E] text-white border-gray-600'
+                    />
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
                     />
-                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -210,42 +213,42 @@ export default function SettingsPage() {
                   >
                     Social Media
                   </Label>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Input
-                    id='socialMedia'
-                    placeholder='Facebook'
-                    className='bg-[#2C2C2E] text-white border-gray-600'
-                  />
-                   <img
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Input
+                      id='socialMedia'
+                      placeholder='Facebook'
+                      className='bg-[#2C2C2E] text-white border-gray-600'
+                    />
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
                     />
-                    </div>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Input
-                    id='socialMedia'
-                    placeholder='Instagram'
-                    className='bg-[#2C2C2E] text-white border-gray-600'
-                  />
-                   <img
+                  </div>
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Input
+                      id='socialMedia'
+                      placeholder='Instagram'
+                      className='bg-[#2C2C2E] text-white border-gray-600'
+                    />
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
                     />
-                    </div>
-                      <div className='flex justify-center mb-3 items-center gap-3'>
-                  <Input
-                    id='socialMedia'
-                    placeholder='X'
-                    className='bg-[#2C2C2E] text-white border-gray-600'
-                  />
-                   <img
+                  </div>
+                  <div className='flex justify-center mb-3 items-center gap-3'>
+                    <Input
+                      id='socialMedia'
+                      placeholder='X'
+                      className='bg-[#2C2C2E] text-white border-gray-600'
+                    />
+                    <img
                       src='/lock.svg'
                       alt=''
                       className='w-4 h-4 object-cover'
                     />
-                    </div>
+                  </div>
                 </div>
 
                 <Button className='bg-yellow-400 text-black md:relative md:right-[270px] hover:bg-yellow-500 w-[250px] mt-8'>

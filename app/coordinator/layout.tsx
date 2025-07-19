@@ -12,8 +12,7 @@ export default function CoordinatorLayout({
     <SidebarProvider>
       <CoordinatorSidebar />
       <SidebarInset>
-        <CoordinatorHeader userRole="Dashboard"  />
-        <main className="flex-1 p-6 bg-[#1F2124]">{children}</main>
+        <main className="flex-1 p-4  bg-[#1F2124]">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   )

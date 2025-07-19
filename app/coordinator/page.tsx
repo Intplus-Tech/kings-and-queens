@@ -1,9 +1,14 @@
 import CreateTeamModal from "@/app/coordinator/components/CreateTeamModal";
 import TournamentTable from "./components/TournamentTable";
+import { CoordinatorHeader } from "@/components/layout/coordinator-header";
 
 export default function CoordinatorDashboard() {
   return (
-    <div className='space-y-6 '>
+    <>
+      <CoordinatorHeader userRole='Dashboard' />
+
+
+      <div className='space-y-6 mt-4 '>
       <div>
         <a href='/coordinator/teams' className='flex items-center gap-3'>
           {/* <Users className="h-4 w-4" /> */}
@@ -94,5 +99,7 @@ export default function CoordinatorDashboard() {
       </div>
       <CreateTeamModal />
     </div>
+    </>
+  
   );
 }

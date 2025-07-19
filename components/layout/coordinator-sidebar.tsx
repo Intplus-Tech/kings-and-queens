@@ -51,7 +51,7 @@ export function CoordinatorSidebar() {
                 <SidebarMenuButton asChild tooltip="Tournaments" className="h-[60px] bg-[#010B11]">
                   <a href="/coordinator/tournaments" className="flex items-center gap-3">
                     <Calendar className="h-4 w-4" />
-                    <span>Tournaments</span>
+                    <span>Match Center</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -60,7 +60,7 @@ export function CoordinatorSidebar() {
                 <SidebarMenuButton asChild tooltip="Reports" className="h-[60px] bg-[#010B11]">
                   <a href="/coordinator/reports" className="flex items-center gap-3">
                     <BarChart3 className="h-4 w-4" />
-                    <span>Reports</span>
+                    <span>Resources & Tools</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>

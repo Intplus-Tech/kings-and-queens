@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CoordinatorHeader } from "@/components/layout/coordinator-header";
 
 export default function RulesFAQsPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
@@ -42,8 +43,10 @@ export default function RulesFAQsPage() {
 
   return (
     <div className='min-h-screen bg-[#1C1C1E] text-white'>
+            <CoordinatorHeader userRole='Resorces & Tools' />
+
       {/* Navigation Tabs */}
-      <div className='border-b border-gray-700'>
+      <div className='border-b mt-4 border-gray-700'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex space-x-8'>
             <button

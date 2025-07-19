@@ -7,10 +7,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import AddPlayerModal from "../components/AddTeamMembers";
+import { CoordinatorHeader } from "@/components/layout/coordinator-header";
 export default function CoordinatorTeams() {
   return (
     <div>
-      <div className='flex flex-col'>
+        <CoordinatorHeader userRole="Team Management"  />
+
+      <div className='flex mt-11 flex-col'>
         <div className='flex justify-between'>
           <AddPlayerModal />
           <DropdownMenu>
