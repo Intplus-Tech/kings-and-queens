@@ -18,22 +18,12 @@ export function CoordinatorHeader({ userRole }: CoordinatorHeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon">
-            <Bell className="h-4 w-4" />
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Sign Out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        follow us:
+        <img src="/instagram.png" alt="" className="w-6 h-6 border rounded-[60px] object-cover " />
+        <img src="/in.png" alt="" className="w-6 h-6 border rounded-[60px] object-cover " />
+        <img src="/youtubes.png" alt="" className="w-6 h-6 border rounded-[60px] object-cover " />
+        <img src="/x.png" alt="" className="w-6 h-6 border rounded-[60px] object-cover " />
+        <img src="/face.png" alt="" className="w-6 h-6 border rounded-[60px] object-cover bg-blue-500" />
         </div>
       </div>
     </header>
