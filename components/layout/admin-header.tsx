@@ -23,7 +23,7 @@ export function AdminHeader({ userRole }: AdminHeaderProps) {
   const pathname = usePathname()
 
   return (
-    <header className="flex items-center justify-between border-b py-4 px-8 bg-background">
+    <header className="flex items-center justify-between border-b py-2 px-8 bg-background">
       {/* Left side - Logo and title */}
       <div className="flex items-center gap-3 whitespace-nowrap w-[30%]">
         <Image
@@ -54,18 +54,17 @@ export function AdminHeader({ userRole }: AdminHeaderProps) {
               <Link href={href} key={name}>
                 <Button
                   variant="ghost"
-                  className={`flex items-center gap-1 h-auto py-2 px-3 text-base ${
-                    isActive
-                      ? "text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`flex items-center gap-1 h-auto py-2 px-3 text-base ${isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
                 >
-                  {isActive ? 
-                  (
-                    <Icon className="h-5 w-5" fill={"#E3A43A"} stroke={"#E3A43A"}/> 
-                  ) : (
-                    <Icon className="h-5 w-5"/> 
-                  )
+                  {isActive ?
+                    (
+                      <Icon className="h-5 w-5" fill={"#E3A43A"} stroke={"#E3A43A"} />
+                    ) : (
+                      <Icon className="h-5 w-5" />
+                    )
                   }
                   <span>{name}</span>
                 </Button>
@@ -81,7 +80,9 @@ export function AdminHeader({ userRole }: AdminHeaderProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/player/profile">Profile</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Logout</DropdownMenuItem>
             </DropdownMenuContent>
