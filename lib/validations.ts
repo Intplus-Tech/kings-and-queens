@@ -15,8 +15,8 @@ export const resetPasswordSchema = z
   })
 
 export const signInSchema = z.object({
-  emailOrUsername: z.string().min(1, "Email or username is required"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 
 export const schoolRegistrationSchema = z.object({
