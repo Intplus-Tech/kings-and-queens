@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
 
 // Auth routes that authenticated users shouldn't access
-const authPaths = ["/auth/sign-in", "/auth/sign-up", "/auth/sign-up/successful"]
+const authPaths = ["/auth/sign-in", "/auth/register", "/auth/email-verification", "/auth/" "/auth/register/successful"]
 
 // Role-based route access rules with prefix matching
 const roleBasedRoutes: Record<string, string> = {

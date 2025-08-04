@@ -65,7 +65,7 @@ export const combinedRegistrationSchema = z.object({
 })
 
 export const emailVerificationSchema = z.object({
-  otp: z.string().length(5, "Please enter the complete 5-digit code"),
+  otp: z.string().length(6, "Please enter the complete 6-digit code"),
 })
 
 export type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>
