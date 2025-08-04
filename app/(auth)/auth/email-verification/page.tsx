@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { emailVerificationSchema, type EmailVerificationForm } from "@/lib/validations"
-import { AuthLayout } from "../_components/auth_layouts"
+import { AuthLayout } from "../../_components/auth_layouts"
 
 export default function EmailVerificationPage() {
   const [otp, setOtp] = useState(["", "", "", "", ""])

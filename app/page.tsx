@@ -97,8 +97,11 @@ export default function HomePage() {
                 size="lg"
                 variant={'ghost'}
                 className="text-primary text-xl font-semibold hover:text-primary"
+                asChild
               >
-                Register NOW!
+                <Link href={'/auth/register'}>
+                  Register NOW!
+                </Link>
               </Button>
 
               {/* Sign In Dropdown */}

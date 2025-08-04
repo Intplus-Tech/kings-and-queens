@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { signInSchema, type SignInForm } from "@/lib/validations"
-import { AuthLayout } from "../_components/auth_layouts"
+import { AuthLayout } from "../../_components/auth_layouts"
 import { ToastAction } from "@/components/ui/toast"
 import { useState } from "react"
 import { logInAction } from "@/lib/actions/auth/signin.action"
@@ -55,6 +55,8 @@ export default function SignInPage() {
             </ToastAction>
           ),
         })
+        const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl') || '/'
+        window.location.href = callbackUrl
       } else {
         console.log("Sign in error:", result.error);
         // Show error toast

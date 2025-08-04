@@ -19,20 +19,26 @@ export interface CombinedRegistrationFormProps {
 
 
 export interface AuthResponse {
-  token: string
-  user?: {
-    _id: string
-    email: string
-    password: string
-    isVerified: boolean
-    verificationToken: string
-    verificationTokenExpiresAt: string
-    status: string
-    role: string
-    coordinatorId: string
-    createdAt: string
-    updatedAt: string
+  success: boolean
+  status: number
+  message?: string
+  data?: {
+    token: string
+    user: {
+      _id: string
+      email: string
+      password: string
+      isVerified: boolean
+      verificationToken: string
+      verificationTokenExpiresAt: string
+      status: string
+      role: string
+      coordinatorId: string
+      createdAt: string
+      updatedAt: string
+    }
   }
+  error?: string
 }
 
 export interface UserSettings {
