@@ -118,7 +118,7 @@ export default function HomePage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-gray-800 border-gray-600 text-white w-56">
                   <DropdownMenuItem className="hover:bg-gray-700 cursor-pointer py-3">
-                    <Link href={'/auth/sign-in'}>As A Player</Link>
+                    <Link href={'/auth/player-signin'}>As A Player</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem className="hover:bg-gray-700 cursor-pointer py-3">
                     <Link href={'/auth/sign-in'}>As A Coordinator</Link>

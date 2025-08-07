@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
 
 // Auth routes that authenticated users shouldn't access
-const authPaths = ["/auth/sign-in", "/auth/register", "/auth/email-verification", "/auth/forgot-password", "/auth/reset-password", "/auth/forgot-password", "/auth/register/successful"]
+const authPaths = ["/auth/sign-in", "/auth/register", "/auth/email-verification", "/auth/forgot-password", "/auth/reset-password", "/auth/forgot-password", "/auth/join-team", "/auth/player-signin", "/auth/register/successful"]
 
 // Role-based route access rules with prefix matching
 const roleBasedRoutes: Record<string, string> = {
@@ -50,7 +50,7 @@ export async function middleware(request: NextRequest) {
       } catch (error) {
         console.error("JWT verification failed:", error)
         // Invalid token, redirect to sign-in and clear the token
-        const signInUrl = new URL("/auth/sign-in", request.url)
+        const signInUrl = new URL("/", request.url)
         signInUrl.searchParams.set("callbackUrl", "/")
         const response = NextResponse.redirect(signInUrl)
         response.cookies.delete("k_n_q_auth_token")
@@ -63,7 +63,7 @@ export async function middleware(request: NextRequest) {
 
   // Check if user is authenticated for protected routes
   if (!token) {
-    const signInUrl = new URL("/auth/sign-in", request.url)
+    const signInUrl = new URL("/", request.url)
     // Set default callback URL to /, preserving any existing callbackUrl if present
     signInUrl.searchParams.set("callbackUrl", pathname)
     return NextResponse.redirect(signInUrl)
