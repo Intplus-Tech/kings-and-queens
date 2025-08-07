@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { forgotPasswordSchema, type ForgotPasswordForm } from "@/lib/validations"
-import { AuthLayout } from "../_components/auth_layouts"
+import { AuthLayout } from "../../_components/auth_layouts"
 
 export default function ForgotPasswordPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
