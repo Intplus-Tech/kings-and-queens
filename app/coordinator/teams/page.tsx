@@ -7,7 +7,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import AddPlayerModal from "../components/AddTeamMembers";
-export default function CoordinatorTeams() {
+import { getPlayersAction } from "@/lib/actions/players/get-palyer.action";
+
+
+export default async function CoordinatorTeams() {
+
+  const response = await getPlayersAction();
+  const players = response.players;
+
   return (
     <div>
       <div className='flex flex-col'>
@@ -27,7 +34,7 @@ export default function CoordinatorTeams() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <TeamManagementTable />
+        <TeamManagementTable players={players} />
       </div>
     </div>
   );

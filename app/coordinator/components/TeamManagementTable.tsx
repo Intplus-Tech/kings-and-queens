@@ -15,74 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import Image from "next/image";
-interface Transaction {
-  id: number;
-  playerId: string;
-  alias: string;
-  dob: string;
-  class: string;
-  phoneno: string;
-  name: string;
-  status?: string;
-}
-const data: Transaction[] = [
-  {
-    id: 1,
-    name: "Ahmed shisha",
-    playerId: "127",
-    alias: "shisha",
-    dob: "23/04/2005",
-    class: "ss1",
-    phoneno: "0999911111",
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Laminie shisha",
-    playerId: "7237",
-    alias: "shisha",
-    dob: "23/04/2107",
-    class: "ss3",
-    phoneno: "0999911111",
-    status: "inactive",
-  },
-  {
-    id: 3,
-    name: "Diaha shisha",
-    playerId: "7227",
-    alias: "shisha",
-    dob: "23/04/2007",
-    class: "ss3",
-    phoneno: "0999911111",
-    status: "Suspended",
-  },
-  {
-    id: 4,
-    name: "Adebayo gabriel",
-    playerId: "7227",
-    alias: "hfs",
-    dob: "23/04/2300",
-    class: "ss3",
-    phoneno: "0999911111",
-    status: "susspended",
-  },
-  {
-    id: 5,
-    name: "Adebayo Shisha",
-    playerId: "7777",
-    alias: "annnie",
-    dob: "23/04/2000",
-    class: "jss3",
-    phoneno: "0999999999",
-    status: "inactive",
-  },
-];
-const TournamentManagementTable = () => {
-  const [selected, setSelected] = useState<number[]>([]);
+import { Player } from "@/types/player";
+
+const TournamentManagementTable = ({ players }: { players: Player[] }) => {
   const [isMounted, setIsMounted] = useState(false);
-  const [currentPage, setCurrentPage] = useState<number>(1);
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -106,15 +42,15 @@ const TournamentManagementTable = () => {
           </TableHeader>
 
           <TableBody className='bg-[#00000066] text-[#A3ABB2]'>
-            {data.map((item) => (
-              <TableRow key={item.id} className='h-14 border border-gray-600 '>
-                <TableCell>{item.playerId}</TableCell>
+            {players.map((item) => (
+              <TableRow key={item._id} className='h-14 border border-gray-600 '>
+                <TableCell>{item._id}</TableCell>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>{item.alias}</TableCell>
                 <TableCell>{item.dob}</TableCell>
-                <TableCell>{item.class}</TableCell>
-                <TableCell>{item.phoneno}</TableCell>
-                <TableCell>{item.status}</TableCell>
+                <TableCell>{item.playerClass}</TableCell>
+                <TableCell>{item.phoneNumber}</TableCell>
+                {/* <TableCell>{item.status}</TableCell> */}
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger

@@ -45,10 +45,10 @@ export async function logInAction(values: SignInForm) {
       path: "/",
     })
 
-    console.log("Login successful:", {
-      message: authData.message,
-      user: { ...authData.data.user, password: "***REDACTED***" },
-    })
+    // console.log("Login successful:", {
+    //   message: authData.message,
+    //   user: { ...authData.data.user, password: "***REDACTED***" },
+    // })
 
     // Return success with redirect path instead of redirecting here
     const userRole = authData.data.user.role
