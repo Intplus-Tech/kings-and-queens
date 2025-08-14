@@ -7,8 +7,8 @@ export interface Player {
   dob: string
   playerClass: string
   phoneNumber: string
-  isCaptain: string
-  isViceCaptain: string
+  isCaptain: boolean
+  isViceCaptain: boolean
   token: string
   createdAt: string
   updatedAt: string
