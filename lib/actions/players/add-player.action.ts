@@ -29,6 +29,7 @@ export async function addPlayerAction(values: {
         error: "No authentication token found",
       }
     }
+    console.log(values)
 
     const response = await fetch(`${process.env.BASE_URL}/players`, {
       method: "POST",
@@ -46,6 +47,9 @@ export async function addPlayerAction(values: {
     })
 
     const result = await response.json()
+
+    console.log(result)
+
     if (!response.ok || !result.success) {
       return {
         success: false,

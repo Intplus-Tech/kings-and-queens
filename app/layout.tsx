@@ -10,7 +10,6 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Kings & Queens - Chess Management System",
   description: "Role-based chess tournament management system",
-  generator: "v0.dev",
 };
 
 export default function RootLayout({
