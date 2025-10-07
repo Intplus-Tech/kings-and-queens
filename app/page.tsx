@@ -1,9 +1,11 @@
-import Image from "next/image"
+'use client'
+
+import React, { useRef, useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { ChevronDown, Instagram, Linkedin, Facebook, Menu } from "lucide-react"
+import { ChevronDown, Instagram, Linkedin, Facebook, Menu, Volume2, VolumeX } from "lucide-react"
 
 export default function HomePage() {
   const navItems = [
@@ -14,19 +16,66 @@ export default function HomePage() {
     { href: "/live-games", label: "Live Games!", highlight: true },
   ]
 
+  // Video audio state
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [muted, setMuted] = useState(false)
+
+  // Try to play video with audio after user interaction
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = 0.5 // Set volume to 50%
+    }
+    const playWithAudio = () => {
+      if (videoRef.current) {
+        videoRef.current.muted = false
+        videoRef.current.volume = 0.5 // Ensure volume stays at 50%
+        videoRef.current.play().catch(() => { })
+      }
+      window.removeEventListener("click", playWithAudio)
+    }
+    window.addEventListener("click", playWithAudio)
+    return () => window.removeEventListener("click", playWithAudio)
+  }, [])
+
+  // Toggle mute
+  const handleMuteToggle = () => {
+    setMuted((prev) => {
+      const newMuted = !prev
+      if (videoRef.current) videoRef.current.muted = newMuted
+      return newMuted
+    })
+  }
+
+  const playClickSound = () => {
+    const audio = new Audio("/audio/mixkit-classic-click-1117.wav")
+    audio.volume = 1 // adjust volume if needed
+    audio.play()
+  }
+
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="/images/bg-image.png"
-          alt="Chess pieces background"
-          fill
-          className="object-cover opacity-80"
-          priority
-        />
-        <div className="absolute inset-0" />
-      </div>
+      <video
+        ref={videoRef}
+        autoPlay
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover opacity-40"
+        muted={muted}
+      >
+        <source src="/videos/bg-video.mp4" type="video/mp4" />
+      </video>
+
+      {/* Floating mute/unmute button */}
+      <button
+        onClick={handleMuteToggle}
+        className="fixed bottom-3 left-6 z-50 bg-black/70 hover:bg-black/90 text-white rounded-full p-3 shadow-lg transition-colors"
+        aria-label={muted ? "Unmute background video" : "Mute background video"}
+        style={{ backdropFilter: "blur(4px)" }}
+      >
+        {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+      </button>
+
+      <div className="absolute inset-0 z-[1]" />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col min-h-screen">
@@ -87,7 +136,7 @@ export default function HomePage() {
 
             {/* Main Title */}
             <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-8 sm:mb-12 lg:mb-16 leading-tight">
-              Kings & Queens
+              Knight Battle
             </h1>
 
             {/* Action Buttons */}
@@ -95,13 +144,12 @@ export default function HomePage() {
               {/* Register Button */}
               <Button
                 size="lg"
-                variant={'ghost'}
+                variant={"ghost"}
                 className="text-primary text-xl font-semibold hover:text-primary"
                 asChild
+                onClick={playClickSound}
               >
-                <Link href={'/auth/register'}>
-                  Register NOW!
-                </Link>
+                <Link href={"/auth/register"}>Register NOW!</Link>
               </Button>
 
               {/* Sign In Dropdown */}
@@ -109,19 +157,21 @@ export default function HomePage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     size="lg"
-                    variant={'ghost'}
+                    variant={"ghost"}
                     className="text-primary text-xl font-semibold hover:text-primary"
+                    aria-label="Sign in options"
+                    onClick={playClickSound}
                   >
                     Sign in
                     <ChevronDown className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-gray-800 border-gray-600 text-white w-56">
-                  <DropdownMenuItem className="hover:bg-gray-700 cursor-pointer py-3">
-                    <Link href={'/auth/player-signin'}>As A Player</Link>
+                  <DropdownMenuItem className="hover:bg-gray-700 cursor-pointer py-3" onClick={playClickSound}>
+                    <Link href={"/auth/player-signin"}>As A Player</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="hover:bg-gray-700 cursor-pointer py-3">
-                    <Link href={'/auth/sign-in'}>As A Coordinator</Link>
+                  <DropdownMenuItem className="hover:bg-gray-700 cursor-pointer py-3" onClick={playClickSound}>
+                    <Link href={"/auth/sign-in"}>As A Coordinator</Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

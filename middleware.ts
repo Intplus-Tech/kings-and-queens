@@ -106,5 +106,7 @@ export async function middleware(request: NextRequest) {
 
 // Configure which routes to run middleware on
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|public|images|icons|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|public|images|videos|audio|rules|leaderboard|live-games|icons|favicon.ico|about|contact|policies|terms).*)",
+  ],
 }
