@@ -1,14 +1,25 @@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import AddPlayerModal from "../components/AddTeamMembers"
-import { getPlayersAction } from "@/lib/actions/players/get-palyer.action"
+import { getPlayersAction, getPlayersBySchoolIdAction } from "@/lib/actions/players/get-palyer.action"
 import TeamManagementTable from "../components/TeamManagementTable"
+import { getSchoolInfo } from "@/lib/actions/school/schoolManagement.action"
 
 export default async function CoordinatorTeams() {
-  const response = await getPlayersAction()
+  const school = await getSchoolInfo()
+
+  const schoolId = school.data?._id
+
+  console.log(schoolId);
+
+
+  if (!schoolId) {
+    return <div className="text-red-500">Error: Unable to retrieve school information.</div>
+  }
+  const response = await getPlayersBySchoolIdAction(schoolId)
   const players = response.players
 
-  console.log("Fetched players:", players)
+  // console.log("Fetched players:", players)
 
   return (
     <div>
