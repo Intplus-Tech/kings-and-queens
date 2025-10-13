@@ -55,7 +55,6 @@ export async function playerSignInAction(values: {
       return { error: "Authentication failed: Invalid response from server." }
     }
 
-    // Optionally, store token in cookies here if needed
 
     // Set the authentication token cookie
     const cookieStore = await cookies()

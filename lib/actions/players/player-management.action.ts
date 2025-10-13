@@ -28,7 +28,7 @@ interface PlayerActionResponse {
 // Update player
 export async function updatePlayerAction(playerId: string, update: Record<string, any>): Promise<PlayerActionResponse> {
 
-  console.log("Updating player with ID:", playerId, "with data:", update);
+  // console.log("Updating player with ID:", playerId, "with data:", update);
 
   try {
 
@@ -36,7 +36,7 @@ export async function updatePlayerAction(playerId: string, update: Record<string
     const token = cookieStore.get("k_n_q_auth_token")?.value
 
 
-    console.log("token", token)
+    // console.log("token", token)
 
     if (!token) {
       return {
@@ -57,8 +57,8 @@ export async function updatePlayerAction(playerId: string, update: Record<string
     })
 
     const result = await response.json()
-    console.log("Response from update:", response);
-    console.log("Update response:", result);
+    // console.log("Response from update:", response);
+    // console.log("Update response:", result);
     if (!response.ok || !result.success) {
       return {
         success: false,
@@ -87,7 +87,7 @@ export async function updatePlayerAction(playerId: string, update: Record<string
 // Delete player
 export async function deletePlayerAction(playerId: string): Promise<PlayerActionResponse> {
 
-  console.log("Deleting player with ID:", playerId);
+  // console.log("Deleting player with ID:", playerId);
 
 
   try {
@@ -95,7 +95,7 @@ export async function deletePlayerAction(playerId: string): Promise<PlayerAction
     const cookieStore = await cookies()
     const token = cookieStore.get("k_n_q_auth_token")?.value
 
-    console.log("token", token)
+    // console.log("token", token)
 
     if (!token) {
       return {
@@ -117,8 +117,8 @@ export async function deletePlayerAction(playerId: string): Promise<PlayerAction
     })
 
     const result = await response.json()
-    console.log("Response from delete:", response);
-    console.log("Delete response:", result);
+    // console.log("Response from delete:", response);
+    // console.log("Delete response:", result);
     if (!response.ok || !result.success) {
       return {
         success: false,

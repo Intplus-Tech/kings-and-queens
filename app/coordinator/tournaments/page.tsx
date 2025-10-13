@@ -1,36 +1,48 @@
-"use client";
-import { Button } from "@/components/ui/button";
-import MatchesTable from "../components/MatchesTable";
-import { useState } from "react";
-import PastResults from "../components/pastResults";
+"use client"
+
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import MatchesTable from "../components/MatchesTable"
+import PastResults from "../components/pastResults"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function CoordinatorTournaments() {
-  const [Fixtures, SetFixtures] = useState(true);
-
   return (
-    <div className='space-y-6'>
-      <div className='flex gap-2  justify-center items-center bg-gray-600'>
-        <button
-         
-          className={
-            ` w-1/2 bg-gray-600 hover:bg-none p-2 border rounded border-transparent ` +
-            (Fixtures ? "bg-[#F39F12]" : "")
-          }
-          onClick={() => SetFixtures(true)}
-        >
-          Fixtures
-        </button>
-        <button
-          className={
-            `w-1/2 bg-gray-600 hover:bg-none p-2 border rounded border-transparent ` +
-            (!Fixtures ? "bg-[#F39F12]" : "")
-          }
-          onClick={() => SetFixtures(false)}
-        >
-          Past results
-        </button>
-      </div>
-      <div>{Fixtures ? <MatchesTable /> : <PastResults />}</div>
+    <div className="space-y-6">
+      <Tabs defaultValue="fixtures" className="w-full">
+        {/* Tabs Navigation */}
+        <div className="flex items-center justify-between gap-10">
+
+          <TabsList className="grid w-full grid-cols-2 bg-gray-600">
+            <TabsTrigger
+              value="fixtures"
+              className="data-[state=active]:bg-primary text-white"
+            >
+              Fixtures
+            </TabsTrigger>
+            <TabsTrigger
+              value="results"
+              className="data-[state=active]:bg-primary text-white"
+            >
+              Past results
+            </TabsTrigger>
+          </TabsList>
+
+          <Button size={"sm"} asChild>
+            <Link href="/coordinator/tournaments/join-tournament">
+              Join Tournament
+            </Link>
+          </Button>
+        </div>
+
+        {/* Tab Content */}
+        <TabsContent value="fixtures">
+          <MatchesTable />
+        </TabsContent>
+        <TabsContent value="results">
+          <PastResults />
+        </TabsContent>
+      </Tabs>
     </div>
-  );
+  )
 }
