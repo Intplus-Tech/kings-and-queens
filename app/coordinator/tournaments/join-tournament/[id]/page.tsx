@@ -4,32 +4,21 @@ import React from "react"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { getTournamentAction } from "@/lib/actions/tournaments/tournaments"
+import { getPlayerByIdAction } from "@/lib/actions/players/get-palyer.action"
 import JoinTournamentModal from "@/app/coordinator/components/JoinTournamentModal"
+import { fmtDateRange } from "@/lib/utils"
 
 type PageProps = {
   params: { id: string }
 }
 
-const fmtDateRange = (start?: string, end?: string) => {
-  if (!start && !end) return "No dates"
-  const opts: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" }
-  const s = start ? new Date(start) : null
-  const e = end ? new Date(end) : null
-  if (s && e) {
-    if (s.getUTCFullYear() === e.getUTCFullYear() && s.getUTCMonth() === e.getUTCMonth() && s.getUTCDate() === e.getUTCDate()) {
-      return s.toLocaleDateString(undefined, opts)
-    }
-    return `${s.toLocaleDateString(undefined, opts)} — ${e.toLocaleDateString(undefined, opts)}`
-  }
-  return s ? s.toLocaleDateString(undefined, opts) : e?.toLocaleDateString(undefined, opts) ?? "No dates"
-}
+
 
 const page = async ({ params }: PageProps) => {
   const { id } = await params
@@ -52,7 +41,38 @@ const page = async ({ params }: PageProps) => {
   }
 
   const t = res.tournament
-  const participantCount = Array.isArray(t.participants) ? t.participants.length : 0
+
+  // Normalize and resolve participant data:
+  // - If participant is a string id -> fetch via server action getPlayerByIdAction
+  // - If participant is already an object -> use as-is
+  const rawParticipants = Array.isArray(t.participants) ? t.participants : []
+
+  const resolvedParticipants = await Promise.all(
+    rawParticipants.map(async (p: any) => {
+      try {
+        if (!p) return null
+        if (typeof p === "string") {
+          const r = await getPlayerByIdAction(p)
+
+          console.log("Resolved player for id:", p, r)
+          return r.success && r.player ? r.player : { _id: p, name: "Unknown", alias: "" }
+        }
+        // object shape (already populated)
+        if (typeof p === "object") {
+          // normalize id field
+          const id = p._id ?? p.id ?? null
+          return { _id: id, name: p.name ?? p.alias ?? "Unknown", alias: p.alias ?? "" }
+        }
+        return null
+      } catch {
+        return null
+      }
+    })
+  )
+
+  const participants = resolvedParticipants.filter(Boolean) as any[]
+  console.log("Resolved participants:", participants)
+  const participantCount = participants.length
 
   return (
     <div className="max-w-4xl mx-auto py-8 space-y-6">
@@ -106,12 +126,12 @@ const page = async ({ params }: PageProps) => {
         </CardFooter>
       </Card>
 
-      {Array.isArray(t.participants) && t.participants.length > 0 && (
+      {participants.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-2">Participants ({participantCount})</h2>
           <div className="grid gap-2 sm:grid-cols-2">
-            {t.participants.map((p: any) => (
-              <div key={p._id ?? p.id ?? p} className="flex items-center gap-3 p-3 border rounded">
+            {participants.map((p: any) => (
+              <div key={p._id ?? p.id ?? JSON.stringify(p)} className="flex items-center gap-3 p-3 border rounded">
                 <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                   <span className="text-sm font-medium">{(p.name || p.alias || "P").charAt(0)}</span>
                 </div>

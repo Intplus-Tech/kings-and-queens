@@ -5,10 +5,12 @@ import { useEffect, useState } from "react"
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input" // optional search input
-import { getPlayersAction } from "@/lib/actions/players/get-palyer.action" // server action (use server)
+import { getPlayersAction, getPlayersBySchoolIdAction } from "@/lib/actions/players/get-palyer.action" // server action (use server)
 import { joinTournamentAction } from "@/lib/actions/tournaments/tournaments" // server action (use server)
 import { Checkbox } from "@/components/ui/checkbox" // if available; otherwise use native checkbox
 import { useToast } from "@/hooks/use-toast"
+import { getSchoolInfo } from "@/lib/actions/school/schoolManagement.action"
+import { useRouter } from "next/navigation"
 
 type Player = {
   _id: string
@@ -26,6 +28,7 @@ export default function JoinTournamentModal({ tournamentId }: { tournamentId: st
   const [filter, setFilter] = useState("")
 
   const { toast } = useToast()
+  const router = useRouter()
 
   // fetch players when dialog opens
   useEffect(() => {
@@ -35,7 +38,17 @@ export default function JoinTournamentModal({ tournamentId }: { tournamentId: st
     const fetchPlayers = async () => {
       setLoadingPlayers(true)
       try {
-        const res = await getPlayersAction()
+        const school = await getSchoolInfo()
+        const schoolId = school?.data?._id || ""
+        if (!schoolId) {
+          toast({
+            title: "Error",
+            description: "Failed to get school information",
+            variant: "destructive",
+          })
+          return
+        }
+        const res = await getPlayersBySchoolIdAction(schoolId)
         if (!mounted) return
         if (res.success) {
           setPlayers(res.players || [])
@@ -90,8 +103,10 @@ export default function JoinTournamentModal({ tournamentId }: { tournamentId: st
           description: res.error || "Joined tournament successfully",
         })
         // Optionally close the dialog and clear selection
+        router.refresh()
         setOpen(false)
         setSelected({})
+
       } else {
         toast({
           title: "Error",

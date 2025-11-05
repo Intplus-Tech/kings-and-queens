@@ -1,3 +1,6 @@
+'use server'
+
+
 import { cookies } from "next/headers";
 import { getUser } from "../user/user.action";
 import { SchoolData } from "@/types/school";

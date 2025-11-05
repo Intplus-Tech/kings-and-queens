@@ -40,8 +40,6 @@ export default function SignInPage() {
       const result = await logInAction(data)
 
       if (result.success) {
-        console.log("Sign in successful:", result.user)
-        // Show success toast
         toast({
           title: "Welcome Back",
           description: "Sign in successful",

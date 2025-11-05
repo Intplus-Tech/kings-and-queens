@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Game Test Panel</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+      body {
+        background: #111;
+        color: #eee;
+        font-family: monospace;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+      }
+      input,
+      button {
+        margin: 6px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: none;
+      }
+      button {
+        background: #00ff88;
+        color: #111;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #00cc66;
+      }
+      #log {
+        width: 90%;
+        height: 350px;
+        background: #222;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 15px;
+        overflow-y: auto;
+      }
+      h2 {
+        color: #00ff88;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>🎮 Socket.IO Game Test Panel</h2>
+
+    <div>
+      <input id="userId" placeholder="Enter userId" />
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn">Disconnect</button>
+    </div>
+
+    <div>
+      <input id="gameId" placeholder="Game ID" />
+      <button id="joinBtn">Join Game</button>
+    </div>
+
+    <div>
+      <input id="move" placeholder="Enter move (e.g. e4)" />
+      <button id="sendMoveBtn">Send Move</button>
+    </div>
+
+    <div>
+      <input id="status" placeholder="Game status (e.g. ongoing)" />
+      <button id="updateGameBtn">Send Game Update</button>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+      let socket;
+
+      const log = (msg, color = "#00ff88") => {
+        const box = document.getElementById("log");
+        const p = document.createElement("p");
+        p.style.color = color;
+        p.textContent = msg;
+        box.appendChild(p);
+        box.scrollTop = box.scrollHeight;
+      };
+
+      document.getElementById("connectBtn").onclick = () => {
+        const userId = document.getElementById("userId").value.trim();
+        if (!userId) return alert("Enter userId first");
+
+        socket = io("https://knq-be.onrender.com/", {
+          query: { userId },
+          transports: ["websocket"],
+        });
+
+        socket.on("connect", () =>
+          log(✅ Connected as ${userId} (${socket.id}))
+        );
+        socket.on("disconnect", () => log("❌ Disconnected", "red"));
+
+        socket.on("PLAYER_JOINED", (d) =>
+          log(👥 Player joined: ${d.userId}, "#ffaa00")
+        );
+        socket.on("PLAYER_LEFT", (d) =>
+          log(🚪 Player left: ${d.userId}, "#ff4444")
+        );
+        socket.on("JOIN_CONFIRM", (d) =>
+          log(✅ Joined game ${d.gameId}, "#00ccff")
+        );
+        socket.on("MOVE_MADE", (d) =>
+          log(♟ Move by ${d.userId}: ${d.move}, "#dddddd")
+        );
+        socket.on("GAME_UPDATED", (d) =>
+          log(📢 Game update (${d.gameId}): ${d.status}, "#66aaff")
+        );
+      };
+
+      document.getElementById("disconnectBtn").onclick = () => {
+        if (socket) socket.disconnect();
+      };
+
+      document.getElementById("joinBtn").onclick = () => {
+        const gameId = document.getElementById("gameId").value.trim();
+        socket.emit("JOIN_GAME", gameId);
+        log(🎮 Sent JOIN_GAME for ${gameId}, "#ffaa00");
+      };
+
+      document.getElementById("sendMoveBtn").onclick = () => {
+        const gameId = document.getElementById("gameId").value.trim();
+        const move = document.getElementById("move").value.trim();
+        socket.emit("MAKE_MOVE", { gameId, move });
+        log(🕹 Sent move: ${move}, "#dddddd");
+      };
+
+      document.getElementById("updateGameBtn").onclick = () => {
+        const gameId = document.getElementById("gameId").value.trim();
+        const status = document.getElementById("status").value.trim();
+        socket.emit("GAME_UPDATE", { gameId, status });
+        log(📢 Sent game update: ${status}, "#66aaff");
+      };
+    </script>
+  </body>
+</html>

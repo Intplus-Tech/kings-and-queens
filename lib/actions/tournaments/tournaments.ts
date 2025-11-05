@@ -26,6 +26,9 @@ export async function getTournamentsAction(): Promise<{ tournaments: Tournament[
       },
     })
 
+    console.log('Fetch response status:', response.status);
+    // console.log('Fetch response headers:', response.headers);
+
     // Safely parse JSON (handle empty body)
     let result: any = undefined
     try {
