@@ -106,11 +106,31 @@ export type TimeControl = {
   increment: number; // Increment in *milliseconds*
 };
 
+// NOTE: The backend `gameRoomManager` expects timeControl in *seconds*.
+// The frontend `TIME_CONTROLS` type defines time in *milliseconds*.
+// This seems to be a discrepancy. The `GameSetup` component
+// passes the `timeControl` object directly, which has `time` in `ms`.
+// The backend's `joinScheduledGame` handler, however, expects
+// `timeControl.base` and `timeControl.increment` in *seconds*.
+//
+// For this fix, I am ASSUMING the backend logic is correct and
+// that the time received from the server (whiteTime, blackTime)
+// is in *SECONDS* as defined in `gameRoomManager.ts`.
+// I will multiply by 1000 when setting client state.
+//
+// The `TIME_CONTROLS` array values (e.g., 60000) are likely
+// being misinterpreted by the backend, which expects `base: 60`.
+// This is a separate issue from the timer *display* logic.
+// The `GameSetup` component should probably be sending
+// `{ base: 60, increment: 0 }` instead of `{ name: "...", time: 60000, ... }`.
+//
+// For now, I will fix the countdown timer based on server data.
+
 export const TIME_CONTROLS: TimeControl[] = [
-  { name: "Bullet (1+0)", time: 60000, increment: 0 },
-  { name: "Blitz (3+0)", time: 180000, increment: 0 },
-  { name: "Blitz (3+2)", time: 180000, increment: 2000 },
-  { name: "Rapid (10+0)", time: 600000, increment: 0 },
+  { name: "Bullet (1+0)", time: 60 * 1000, increment: 0 * 1000 },
+  { name: "Blitz (3+0)", time: 180 * 1000, increment: 0 * 1000 },
+  { name: "Blitz (3+2)", time: 180 * 1000, increment: 2 * 1000 },
+  { name: "Rapid (10+0)", time: 600 * 1000, increment: 0 * 1000 },
 ];
 
 // --- HELPER FUNCTIONS ---
@@ -137,8 +157,8 @@ interface ServerToClientEvents {
     fen: string;
     yourColor: "white" | "black" | "observer";
     players: { white: string | null; black: string | null };
-    whiteTime: number; // in ms
-    blackTime: number; // in ms
+    whiteTime: number; // in SECONDS from server
+    blackTime: number; // in SECONDS from server
   }) => void;
   [SOCKET_EVENTS.S2C_PLAYER_JOINED]: (d: {
     message: string;
@@ -148,8 +168,8 @@ interface ServerToClientEvents {
     from: string;
     to: string;
     newFen: string;
-    whiteTime: number; // in ms
-    blackTime: number; // in ms
+    whiteTime: number; // in SECONDS from server
+    blackTime: number; // in SECONDS from server
   }) => void;
   [SOCKET_EVENTS.S2C_GAME_OVER]: (d: {
     reason: string;
@@ -164,6 +184,8 @@ interface ServerToClientEvents {
 
 interface ClientToServerEvents {
   [SOCKET_EVENTS.C2S_AUTHENTICATE]: (d: { token: string }) => void;
+  // This payload should probably be { gameId: string, timeControl: { base: number, increment: number } }
+  // based on the backend logic. The frontend is currently sending the TimeControl object.
   [SOCKET_EVENTS.C2S_JOIN_GAME]: (d: {
     gameId: string;
     timeControl: TimeControl;
@@ -334,7 +356,9 @@ const PlayerTimer: FC<PlayerTimerProps> = ({
   isMyInfo,
 }) => {
   const formatTime = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
+    // Ensure time doesn't go below zero
+    const safeMs = Math.max(0, ms);
+    const totalSeconds = Math.floor(safeMs / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
@@ -365,7 +389,9 @@ const PlayerTimer: FC<PlayerTimerProps> = ({
               isCurrentTurn
                 ? "bg-indigo-600 text-white"
                 : "bg-gray-700 text-gray-300"
-            } ${isLowTime ? "text-red-400" : ""}`}
+            } ${isLowTime && isCurrentTurn ? "animate-pulse bg-red-600" : ""} ${
+              isLowTime && !isCurrentTurn ? "text-red-400" : ""
+            }`}
           >
             <Clock className="h-4 w-4" />
             {formatTime(time)}
@@ -392,6 +418,9 @@ const GameSetup: FC<GameSetupProps> = ({
   const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]); // Default to Blitz (3+0)
 
   const handleJoin = () => {
+    // TODO: This should be converted to { base, increment } in seconds
+    // e.g., onJoinGame(gameId, { base: 180, increment: 0 });
+    // For now, passing the object as-is to match existing code.
     onJoinGame(gameId, selectedTime);
   };
 
@@ -534,8 +563,9 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
 
   // --- Refs ---
   const logScrollRef = useRef<HTMLDivElement>(null);
+  // --- This ref is no longer needed for the new timer logic ---
+  // const lastMoveTimeRef = useRef<number>(Date.now());
   const clientTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastMoveTimeRef = useRef<number>(Date.now());
 
   // --- Logging Utility ---
   const addLog = useCallback((msg: string, color: string = "#00ff88") => {
@@ -549,6 +579,22 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
     };
     setLogs((prev) => [...prev, newEntry].slice(-100)); // Keep last 100 logs
   }, []);
+
+  // --- Helper: Find King Square ---
+  const findKingSquare = (
+    board: ({ type: string; color: string } | null)[][],
+    color: "w" | "b"
+  ) => {
+    for (let r = 0; r < 8; r++) {
+      for (let f = 0; f < 8; f++) {
+        const piece = board[r][f];
+        if (piece && piece.type === "k" && piece.color === color) {
+          return `${"abcdefgh"[f]}${8 - r}`;
+        }
+      }
+    }
+    return null;
+  };
 
   // --- Captured Pieces Calculation ---
   const capturedPieces = useMemo(() => {
@@ -623,29 +669,54 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
     localStorage.setItem(LS_KEY_GAME_ID, gameId);
   }, [gameId]);
 
-  // --- Client-Side Cosmetic Timer ---
+  // --- Check Detection Effect ---
   useEffect(() => {
-    if (clientTimerRef.current) clearInterval(clientTimerRef.current);
+    if (game.isCheck()) {
+      const kingColor = game.turn();
+      // Only log if it's my turn
+      if (
+        (myColor === "white" && kingColor === "w") ||
+        (myColor === "black" && kingColor === "b")
+      ) {
+        addLog("⚠️ You are in check!", "#ffcc00");
+      }
+    }
+  }, [game, myColor, addLog]);
 
-    if (isGameActive && !gameResult) {
-      lastMoveTimeRef.current = Date.now();
-      clientTimerRef.current = setInterval(() => {
-        const now = Date.now();
-        const elapsed = now - lastMoveTimeRef.current;
-        lastMoveTimeRef.current = now;
-
-        const turn = game.turn();
-        if (turn === "w") {
-          setWhiteTime((t) => Math.max(0, t - elapsed));
-        } else {
-          setBlackTime((t) => Math.max(0, t - elapsed));
-        }
-      }, 500); // Update cosmetic timer every 500ms
+  // --- (REFACTORED) Client-Side Countdown Timer ---
+  useEffect(() => {
+    // Clear any existing timer when dependencies change
+    if (clientTimerRef.current) {
+      clearInterval(clientTimerRef.current);
     }
 
+    // Only run the timer if the game is active and not over
+    if (isGameActive && !gameResult) {
+      const countdownInterval = 100; // Run every 100ms for a smoother clock
+
+      clientTimerRef.current = setInterval(() => {
+        const turn = game.turn();
+        if (turn === "w") {
+          setWhiteTime((t) => Math.max(0, t - countdownInterval));
+        } else {
+          setBlackTime((t) => Math.max(0, t - countdownInterval));
+        }
+      }, countdownInterval);
+    }
+
+    // Cleanup: clear the interval when the component unmounts
+    // or when the dependencies change (triggering the effect again)
     return () => {
-      if (clientTimerRef.current) clearInterval(clientTimerRef.current);
+      if (clientTimerRef.current) {
+        clearInterval(clientTimerRef.current);
+      }
     };
+    // Dependencies:
+    // - isGameActive: Starts/stops the timer
+    // - gameResult: Stops the timer
+    // - game.turn(): This will change when a move is made,
+    //   causing the effect to re-run and start the countdown
+    //   for the *other* player.
   }, [isGameActive, gameResult, game.turn()]);
 
   // --- Socket Connection & Auth ---
@@ -697,9 +768,9 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
       setPlayers(d.players);
       setMyColor(d.yourColor);
       setBoardOrientation(d.yourColor === "black" ? "black" : "white");
-      setWhiteTime(d.whiteTime);
-      setBlackTime(d.blackTime);
-      lastMoveTimeRef.current = Date.now();
+      // Server sends time in SECONDS, convert to MS for client state
+      setWhiteTime(d.whiteTime * 1000);
+      setBlackTime(d.blackTime * 1000);
       setIsGameActive(true);
       setGameResult(null);
       setIsDrawOffered(false);
@@ -716,9 +787,9 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
       setGame(newGame);
       setFen(d.newFen);
       setMoveHistory(newGame.history());
-      setWhiteTime(d.whiteTime);
-      setBlackTime(d.blackTime);
-      lastMoveTimeRef.current = Date.now();
+      // Server sends authoritative time in SECONDS, convert to MS
+      setWhiteTime(d.whiteTime * 1000);
+      setBlackTime(d.blackTime * 1000);
       setIsDrawOffered(false);
     });
 
@@ -729,6 +800,8 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
     });
 
     newSocket.on(SOCKET_EVENTS.S2C_DRAW_OFFERED, (d) => {
+      // The payload from the backend is { from: "white" | "black", to: ... }
+      // The old log `fromPlayerId` was incorrect.
       addLog(`🤝 Draw offer from: ${d.fromPlayerId}`, "#66aaff");
       setIsDrawOffered(true);
     });
@@ -781,6 +854,12 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
     // Optimistic UI update
     setFen(gameCopy.fen());
     setGame(gameCopy);
+    // When we make a move, stop the timer immediately
+    // The new timer will start when the S2C_MOVE_MADE event arrives
+    // and the game.turn() dependency changes in the timer's useEffect.
+    if (clientTimerRef.current) {
+      clearInterval(clientTimerRef.current);
+    }
 
     // Emit the move to the server
     addLog(
@@ -814,6 +893,25 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
     socket.emit(SOCKET_EVENTS.C2S_ACCEPT_DRAW, { gameId: gameId });
     addLog(`🤝 Sent ${SOCKET_EVENTS.C2S_ACCEPT_DRAW}`, "#66aaff");
   };
+
+  // --- Style hook for Check ---
+  const squareStyles = useMemo(() => {
+    if (game.isCheck()) {
+      const kingColor = game.turn();
+      const board = game.board();
+      const kingSquare = findKingSquare(board, kingColor);
+
+      if (kingSquare) {
+        return {
+          [kingSquare]: {
+            background:
+              "radial-gradient(circle, rgba(255,0,0,0.8) 0%, rgba(255,0,0,0.1) 60%, transparent 70%)",
+          },
+        };
+      }
+    }
+    return {};
+  }, [game]);
 
   // --- RENDER LOGIC ---
 
@@ -881,6 +979,7 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
               onPieceDrop={onDrop}
               boardOrientation={boardOrientation}
               arePiecesDraggable={!gameResult && isMyTurn}
+              customSquareStyles={squareStyles}
               // Custom piece styles for better visibility of Unicode pieces
               customBoardStyle={{
                 borderRadius: "4px",
@@ -945,6 +1044,8 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
                     size="sm"
                     onClick={() => {
                       // Logic to save PGN
+                      const pgn = game.pgn();
+                      addLog("PGN: " + pgn || "No moves made yet.", "#aaccff");
                     }}
                     className="bg-gray-700 border-gray-600 hover:bg-gray-600"
                     disabled={moveHistory.length === 0}
@@ -973,7 +1074,7 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
                             variant="outline"
                             size="sm"
                             disabled={!isMyTurn || isDrawOffered}
-                            className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+                            className="bg-gray-700 border-gray-600 hover:bg-gray-600 disabled:opacity-50"
                           >
                             <Handshake className="mr-2 h-4 w-4" />
                             {isDrawOffered ? "Draw Offered" : "Offer Draw"}

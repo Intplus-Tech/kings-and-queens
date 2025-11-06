@@ -1,29 +1,29 @@
 "use client";
 
-import React, {
+import type React from "react";
+import {
   useState,
-  useCallback,
   useEffect,
   useRef,
+  useCallback,
+  type FC,
   useMemo,
-  FC,
-  ReactNode,
 } from "react";
-import { Chess } from "chess.js";
+import { io, type Socket } from "socket.io-client";
+import { Chess, type Square, type Move } from "chess.js";
 import { Chessboard } from "react-chessboard";
 
 // --- ShadCN/UI Imports ---
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,145 +35,478 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 // --- Lucide Icon Imports ---
 import {
-  Undo,
-  RotateCcw,
-  Download,
   FlipVertical,
   Flag,
   Handshake,
-  Circle,
   Clock,
-  RefreshCw,
-  ChevronFirst,
-  ChevronLast,
-  ChevronLeft,
-  ChevronRight,
-  Play,
-  Pause,
+  Download,
+  AlertCircle,
 } from "lucide-react";
 
-// --- Utility Imports ---
-import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+// --- Piece Symbols for Display ---
+const PIECE_SYMBOLS: { [key: string]: string } = {
+  K: "♔",
+  Q: "♕",
+  R: "♖",
+  B: "♗",
+  N: "♘",
+  P: "♙",
+  k: "♚",
+  q: "♛",
+  r: "♜",
+  b: "♝",
+  n: "♞",
+  p: "♟︎",
+  Q_w: "♕",
+  R_w: "♖",
+  B_w: "♗",
+  N_w: "♘",
+  P_w: "♙",
+  Q_b: "♛",
+  R_b: "♜",
+  B_b: "♝",
+  N_b: "♞",
+  P_b: "♟︎",
+};
 
-// --- Type Definitions ---
+// --- SOCKET EVENTS (from backend/events.ts) ---
+export const SOCKET_EVENTS = {
+  CONNECTION: "connection",
+  DISCONNECT: "disconnect",
+  C2S_AUTHENTICATE: "c2s-authenticate",
+  S2C_AUTH_SUCCESS: "s2c-auth-success",
+  S2C_ERROR: "s2c-error",
+  C2S_JOIN_GAME: "c2s-join-game",
+  S2C_GAME_STATE: "s2c-game-state",
+  S2C_PLAYER_JOINED: "s2c-player-joined",
+  C2S_MAKE_MOVE: "c2s-make-move",
+  S2C_MOVE_MADE: "s2c-move-made",
+  C2S_RESIGN: "c2s-resign",
+  C2S_OFFER_DRAW: "c2s-offer-draw",
+  C2S_ACCEPT_DRAW: "c2s-accept-draw",
+  S2C_GAME_OVER: "s2c-game-over",
+  S2C_DRAW_OFFERED: "s2c-draw-offered",
+  SOCKET_ERROR: "socket-error",
+} as const;
 
-type Player = {
+// --- LOCALSTORAGE & TIME CONTROLS ---
+const LS_KEY_GAME_ID = "multiplayer_chess_gameId";
+const LS_KEY_LOGS = "multiplayer_chess_logs";
+const LS_KEY_GAME_HISTORY = "multiplayer_chess_game_history";
+const LS_KEY_GAME_TIME_CONTROL = "multiplayer_chess_timeControl";
+const SERVER_URL = "https://knq-be.onrender.com/";
+
+export type TimeControl = {
   name: string;
-  rating: number;
+  time: number;
+  increment: number;
 };
-
-type TimeControl = {
-  name: string;
-  time: number; // in seconds
-};
-
-type Move = {
-  san: string;
-  from: string;
-  to: string;
-  promotion?: string;
-  fenAfterMove: string;
-  check: boolean;
-  checkmate: boolean;
-};
-
-type MovePair = {
-  moveNumber: number;
-  white: Move;
-  black?: Move;
-};
-
-// --- Component from GameSetup.tsx (Modified) ---
 
 export const TIME_CONTROLS: TimeControl[] = [
-  { name: "Bullet (1+0)", time: 60 },
-  { name: "Bullet (2+1)", time: 120 },
-  { name: "Blitz (3+0)", time: 180 },
-  { name: "Blitz (3+2)", time: 180 },
-  { name: "Blitz (5+0)", time: 300 },
-  { name: "Rapid (10+0)", time: 600 },
-  { name: "Rapid (15+10)", time: 900 },
-  { name: "Classical (30+0)", time: 1800 },
+  { name: "Bullet (1+0)", time: 60000, increment: 0 },
+  { name: "Blitz (3+0)", time: 180000, increment: 0 },
+  { name: "Blitz (3+2)", time: 180000, increment: 2000 },
+  { name: "Rapid (10+0)", time: 600000, increment: 0 },
 ];
 
-interface GameSetupProps {
-  onStartGame: (
-    whitePlayer: Player,
-    blackPlayer: Player,
-    timeControl: TimeControl
-  ) => void;
+// --- HELPER FUNCTIONS ---
+const getLocalStorageItem = (key: string): string | null => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(key);
+};
+
+// --- TYPES ---
+type LogEntry = {
+  id: string;
+  message: string;
+  color: string;
+  timestamp: string;
+};
+
+type GameHistoryEntry = {
+  id: string;
+  moveNumber: number;
+  color: "white" | "black";
+  move: string;
+  fen: string;
+  whiteTime: number;
+  blackTime: number;
+  timestamp: number;
+};
+
+interface ServerToClientEvents {
+  [SOCKET_EVENTS.S2C_AUTH_SUCCESS]: (d: {
+    message: string;
+    userId: string;
+  }) => void;
+  [SOCKET_EVENTS.S2C_ERROR]: (d: { message: string }) => void;
+  [SOCKET_EVENTS.S2C_GAME_STATE]: (d: {
+    fen: string;
+    yourColor: "white" | "black" | "observer";
+    players: { white: string | null; black: string | null };
+    whiteTime: number;
+    blackTime: number;
+  }) => void;
+  [SOCKET_EVENTS.S2C_PLAYER_JOINED]: (d: {
+    message: string;
+    players: { white: string | null; black: string | null };
+  }) => void;
+  [SOCKET_EVENTS.S2C_MOVE_MADE]: (d: {
+    from: string;
+    to: string;
+    newFen: string;
+    whiteTime: number;
+    blackTime: number;
+  }) => void;
+  [SOCKET_EVENTS.S2C_GAME_OVER]: (d: {
+    reason: string;
+    winner?: "white" | "black";
+  }) => void;
+  [SOCKET_EVENTS.S2C_DRAW_OFFERED]: (d: { fromPlayerId: string }) => void;
+  [SOCKET_EVENTS.SOCKET_ERROR]: (d: {
+    context: string;
+    message: string;
+  }) => void;
 }
 
-export const GameSetup: FC<GameSetupProps> = ({ onStartGame }) => {
-  const [whitePlayer, setWhitePlayer] = useState("White");
-  const [whiteRating, setWhiteRating] = useState("1500");
-  const [blackPlayer, setBlackPlayer] = useState("Black");
-  const [blackRating, setBlackRating] = useState("1500");
-  const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[5]); // Default to Rapid 10+0
+interface ClientToServerEvents {
+  [SOCKET_EVENTS.C2S_AUTHENTICATE]: (d: { token: string }) => void;
+  [SOCKET_EVENTS.C2S_JOIN_GAME]: (d: {
+    gameId: string;
+    timeControl: TimeControl;
+  }) => void;
+  [SOCKET_EVENTS.C2S_MAKE_MOVE]: (d: {
+    gameId: string;
+    from: string;
+    to: string;
+    promotion?: string;
+  }) => void;
+  [SOCKET_EVENTS.C2S_RESIGN]: (d: { gameId: string }) => void;
+  [SOCKET_EVENTS.C2S_OFFER_DRAW]: (d: { gameId: string }) => void;
+  [SOCKET_EVENTS.C2S_ACCEPT_DRAW]: (d: { gameId: string }) => void;
+}
 
-  const handleStart = () => {
-    onStartGame(
-      { name: whitePlayer, rating: parseInt(whiteRating) || 1500 },
-      { name: blackPlayer, rating: parseInt(blackRating) || 1500 },
-      selectedTime
+// ====================================================================
+// --- NEW UI COMPONENTS ---
+// ====================================================================
+
+interface CapturedPiecesDisplayProps {
+  captured: { white: string[]; black: string[] };
+}
+const CapturedPiecesDisplay: FC<CapturedPiecesDisplayProps> = ({
+  captured,
+}) => {
+  const getSymbol = (pieceId: string): string => {
+    if (pieceId.length === 1 && pieceId === pieceId.toLowerCase()) {
+      return PIECE_SYMBOLS[pieceId] || "";
+    }
+    if (pieceId.length === 1 && pieceId === pieceId.toUpperCase()) {
+      return PIECE_SYMBOLS[pieceId] || "";
+    }
+    return "";
+  };
+
+  const sortPieces = (pieces: string[]): string[] => {
+    const pieceOrder = ["Q", "R", "B", "N", "P", "q", "r", "b", "n", "p"];
+    return pieces.sort((a, b) => {
+      const aIndex = pieceOrder.indexOf(a);
+      const bIndex = pieceOrder.indexOf(b);
+      return aIndex - bIndex;
+    });
+  };
+
+  const blackCapturedPieces = sortPieces(captured.black)
+    .map((p) => getSymbol(p.toLowerCase()))
+    .join(" ");
+  const whiteCapturedPieces = sortPieces(captured.white)
+    .map((p) => getSymbol(p.toUpperCase()))
+    .join(" ");
+
+  return (
+    <Card className="bg-gray-800 border-gray-700 text-white">
+      <CardHeader className="py-2">
+        <CardTitle className="text-lg">Captured Pieces</CardTitle>
+      </CardHeader>
+      <CardContent className="p-3 space-y-2 text-2xl">
+        <div className="flex flex-col">
+          <span className="text-gray-400 text-sm">By White</span>
+          <div className="min-h-[30px] font-serif text-white">
+            {whiteCapturedPieces || (
+              <span className="text-gray-600 text-sm">None</span>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-gray-400 text-sm">By Black</span>
+          <div className="min-h-[30px] font-serif text-white">
+            {blackCapturedPieces || (
+              <span className="text-gray-600 text-sm">None</span>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+interface MoveHistoryPanelProps {
+  moveHistory: string[];
+  gameHistory: GameHistoryEntry[];
+  currentTurn: "white" | "black";
+}
+const MoveHistoryPanel: FC<MoveHistoryPanelProps> = ({
+  moveHistory,
+  gameHistory,
+  currentTurn,
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [moveHistory]);
+
+  const turns = moveHistory.reduce((acc, move, index) => {
+    const turnNumber = Math.floor(index / 2);
+    if (index % 2 === 0) {
+      acc.push({
+        turn: turnNumber + 1,
+        white: move,
+        black: "",
+        whiteTimeMs: 0,
+        blackTimeMs: 0,
+      });
+    } else {
+      acc[turnNumber].black = move;
+    }
+    return acc;
+  }, [] as { turn: number; white: string; black: string; whiteTimeMs: number; blackTimeMs: number }[]);
+
+  // Enrich turns with time data from gameHistory
+  turns.forEach((turn, idx) => {
+    const whiteEntry = gameHistory.find(
+      (e) => e.moveNumber === turn.turn && e.color === "white"
     );
+    const blackEntry = gameHistory.find(
+      (e) => e.moveNumber === turn.turn && e.color === "black"
+    );
+    if (whiteEntry) turn.whiteTimeMs = whiteEntry.whiteTime;
+    if (blackEntry) turn.blackTimeMs = blackEntry.blackTime;
+  });
+
+  const formatTime = (ms: number) => {
+    if (!ms) return "-";
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="bg-gray-800 border-gray-700 text-white">
+      <CardHeader className="py-2">
+        <CardTitle className="text-lg">Move History & Times</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ScrollArea className="h-[240px] p-3">
+          <div ref={scrollRef} className="text-sm">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-gray-900 border-b border-gray-700">
+                <tr>
+                  <th className="w-1/6 text-gray-400 py-1 px-1">#</th>
+                  <th className="w-2/6 text-white py-1 px-1">White</th>
+                  <th className="w-1/6 text-gray-400 py-1 px-1 text-xs">
+                    Time
+                  </th>
+                  <th className="w-2/6 text-white py-1 px-1">Black</th>
+                  <th className="w-1/6 text-gray-400 py-1 px-1 text-xs">
+                    Time
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {turns.map((turn, index) => (
+                  <tr
+                    key={index}
+                    className={`${
+                      index % 2 === 0 ? "bg-gray-800" : "bg-gray-700"
+                    } hover:bg-indigo-900 transition-colors duration-150`}
+                  >
+                    <td className="py-1 px-1 text-gray-400">{turn.turn}.</td>
+                    <td
+                      className={`py-1 px-1 font-semibold ${
+                        currentTurn === "white" && turn.black === ""
+                          ? "text-indigo-300"
+                          : ""
+                      }`}
+                    >
+                      {turn.white}
+                    </td>
+                    <td className="py-1 px-1 text-xs text-gray-400">
+                      {formatTime(turn.whiteTimeMs)}
+                    </td>
+                    <td
+                      className={`py-1 px-1 ${
+                        currentTurn === "black" && turn.black === ""
+                          ? "text-indigo-300"
+                          : ""
+                      }`}
+                    >
+                      {turn.black}
+                    </td>
+                    <td className="py-1 px-1 text-xs text-gray-400">
+                      {formatTime(turn.blackTimeMs)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+};
+
+interface PlayerTimerProps {
+  playerName: string | null;
+  time: number;
+  isCurrentTurn: boolean;
+  isMyInfo: boolean;
+  playerColor: "white" | "black";
+}
+const PlayerTimer: FC<PlayerTimerProps> = ({
+  playerName,
+  time,
+  isCurrentTurn,
+  isMyInfo,
+  playerColor,
+}) => {
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  };
+
+  const isLowTime = time < 30000;
+  const isCriticalTime = time < 5000;
+  const isTimeout = time <= 0;
+
+  let bgColor = "bg-gray-700";
+  let textColor = "text-gray-300";
+  let timerBgColor = "bg-gray-600";
+
+  if (isCurrentTurn) {
+    if (isCriticalTime) {
+      bgColor = "bg-red-900";
+      textColor = "text-red-100";
+      timerBgColor = "bg-red-600 animate-pulse";
+    } else if (isLowTime) {
+      bgColor = "bg-orange-900";
+      textColor = "text-orange-100";
+      timerBgColor = "bg-orange-600";
+    } else {
+      bgColor = "bg-indigo-900";
+      textColor = "text-indigo-100";
+      timerBgColor = "bg-indigo-600";
+    }
+  }
+
+  return (
+    <Card
+      className={`transition-all duration-300 ${
+        isCurrentTurn
+          ? "ring-2 ring-indigo-500 shadow-lg"
+          : "ring-1 ring-gray-700"
+      }`}
+    >
+      <CardContent className={`p-3 ${bgColor}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <span
+              className={`font-semibold text-sm ${
+                isMyInfo ? "text-indigo-300" : textColor
+              }`}
+            >
+              {playerName ? playerName.slice(0, 12) : "Waiting..."}
+              {isMyInfo && " (You)"}
+            </span>
+            {isCurrentTurn && (
+              <div className="text-xs text-gray-300 mt-1">
+                <span className="inline-block animate-pulse">
+                  ● Your turn to move
+                </span>
+              </div>
+            )}
+          </div>
+          <div
+            className={`flex items-center gap-2 font-mono text-xl font-bold px-3 py-2 rounded ${timerBgColor}`}
+          >
+            <Clock className="h-4 w-4" />
+            <span className={isTimeout ? "text-red-200" : "text-white"}>
+              {formatTime(time)}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+interface GameSetupProps {
+  onJoinGame: (gameId: string, timeControl: TimeControl) => void;
+  gameId: string;
+  setGameId: (id: string) => void;
+  disabled: boolean;
+}
+const GameSetup: FC<GameSetupProps> = ({
+  onJoinGame,
+  gameId,
+  setGameId,
+  disabled,
+}) => {
+  const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
+
+  const handleJoin = () => {
+    onJoinGame(gameId, selectedTime);
+  };
+
+  return (
+    <Card className="w-full max-w-md mx-auto bg-gray-800 border-gray-700 text-white">
       <CardHeader>
-        <CardTitle>New Game Setup</CardTitle>
+        <CardTitle>Join or Create Game</CardTitle>
+        <CardDescription>
+          Enter a Game ID. If it exists, you'll join. If not, a new game will be
+          created with this ID.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="white-player">White Player</Label>
-            <Input
-              id="white-player"
-              value={whitePlayer}
-              onChange={(e) => setWhitePlayer(e.target.value)}
-              placeholder="Enter white player name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="white-rating">Rating</Label>
-            <Input
-              id="white-rating"
-              value={whiteRating}
-              onChange={(e) => setWhiteRating(e.target.value)}
-              placeholder="1500"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="black-player">Black Player</Label>
-            <Input
-              id="black-player"
-              value={blackPlayer}
-              onChange={(e) => setBlackPlayer(e.target.value)}
-              placeholder="Enter black player name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="black-rating">Rating</Label>
-            <Input
-              id="black-rating"
-              value={blackRating}
-              onChange={(e) => setBlackRating(e.target.value)}
-              placeholder="1500"
-            />
-          </div>
-        </div>
-
         <div className="space-y-2">
-          <Label htmlFor="time-control">Time Control</Label>
+          <Label htmlFor="gameId">Game ID</Label>
+          <Input
+            id="gameId"
+            placeholder="Enter Game ID"
+            value={gameId}
+            onChange={(e) => setGameId(e.target.value)}
+            className="flex-1 bg-gray-700 border-gray-600 text-white"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="time-control">Time Control (for new games)</Label>
           <Select
             value={selectedTime.name}
             onValueChange={(value) => {
@@ -181,10 +514,13 @@ export const GameSetup: FC<GameSetupProps> = ({ onStartGame }) => {
               if (control) setSelectedTime(control);
             }}
           >
-            <SelectTrigger id="time-control">
-              <SelectValue placeholder="Select time control" />
+            <SelectTrigger
+              id="time-control"
+              className="bg-gray-700 border-gray-600 text-white"
+            >
+              <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-gray-800 border-gray-700 text-white">
               {TIME_CONTROLS.map((tc) => (
                 <SelectItem key={tc.name} value={tc.name}>
                   {tc.name}
@@ -193,869 +529,674 @@ export const GameSetup: FC<GameSetupProps> = ({ onStartGame }) => {
             </SelectContent>
           </Select>
         </div>
-
-        <Button onClick={handleStart} className="w-full" size="lg">
-          Start Game
+        <Button
+          onClick={handleJoin}
+          disabled={!gameId.trim() || disabled}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+          size="lg"
+        >
+          {disabled ? "Connecting..." : "Join / Create Game"}
         </Button>
       </CardContent>
     </Card>
   );
 };
 
-// --- Component from ChessTimer.tsx (Modified) ---
-
-interface ChessTimerProps {
-  initialTime: number; // in seconds
-  isActive: boolean;
-  onTimeUp: () => void;
-  isCurrentTurn: boolean;
+interface LogPanelProps {
+  logs: LogEntry[];
+  scrollRef?: React.RefObject<HTMLDivElement>;
+  onClear: () => void;
 }
-
-export const ChessTimer: FC<ChessTimerProps> = ({
-  initialTime,
-  isActive,
-  onTimeUp,
-  isCurrentTurn,
-}) => {
-  const [timeLeft, setTimeLeft] = useState(initialTime);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    setTimeLeft(initialTime);
-  }, [initialTime]);
-
-  useEffect(() => {
-    if (isActive && isCurrentTurn) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current as NodeJS.Timeout);
-            onTimeUp();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      clearInterval(timerRef.current as NodeJS.Timeout);
-    }
-
-    return () => clearInterval(timerRef.current as NodeJS.Timeout);
-  }, [isActive, isCurrentTurn, onTimeUp]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const isLowTime = timeLeft < 60 && timeLeft > 0;
-
-  return (
-    <div
-      className={cn(
-        "font-mono text-3xl font-bold p-2 rounded-lg",
-        isCurrentTurn && isActive ? "bg-yellow-300 text-black" : "bg-gray-700",
-        isLowTime && isActive && "bg-red-500 text-white"
-      )}
-    >
-      {formatTime(timeLeft)}
-    </div>
-  );
-};
-
-// --- New PlayerInfo Component ---
-
-interface PlayerInfoProps {
-  player: Player;
-  isCurrentTurn: boolean;
-  isActive: boolean;
-  onTimeUp: () => void;
-  initialTime: number;
-  capturedPieces: string[];
-}
-
-const PlayerInfo: FC<PlayerInfoProps> = ({
-  player,
-  isCurrentTurn,
-  isActive,
-  onTimeUp,
-  initialTime,
-  capturedPieces,
-}) => {
-  return (
-    <div className="flex items-center justify-between p-2">
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <Circle
-            className={cn(
-              "h-3 w-3",
-              isCurrentTurn ? "text-green-500" : "text-gray-600"
-            )}
-          />
-          <span className="font-semibold">{player.name}</span>
-          <span className="text-sm text-gray-400">{player.rating}</span>
-        </div>
-        <div className="text-xl h-8 text-gray-300 mt-1">
-          {capturedPieces.join(" ") || ""}
-        </div>
-      </div>
-      <ChessTimer
-        initialTime={initialTime}
-        isActive={isActive}
-        onTimeUp={onTimeUp}
-        isCurrentTurn={isCurrentTurn}
-      />
-    </div>
-  );
-};
-
-// --- New MoveHistory Component (Refactored) ---
-
-interface MoveHistoryProps {
-  history: MovePair[];
-  currentFen: string;
-  onMoveSelect: (fen: string) => void;
-}
-
-const MoveHistory: FC<MoveHistoryProps> = ({
-  history,
-  currentFen,
-  onMoveSelect,
-}) => {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // Auto-scroll to the active move
-  useEffect(() => {
-    if (scrollRef.current) {
-      // Find the element for the current FEN
-      const activeMoveEl = scrollRef.current.querySelector<HTMLElement>(
-        `[data-fen="${currentFen}"]`
-      );
-
-      if (activeMoveEl) {
-        // Scroll it into view if it exists
-        activeMoveEl.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
-      } else if (history.length === 0) {
-        // Or scroll to top if history is empty
-        scrollRef.current.scrollTop = 0;
-      }
-    }
-  }, [currentFen, history]); // Re-run whenever the displayed FEN changes
-
-  return (
-    <ScrollArea className="flex-1 bg-gray-800 text-sm">
-      <div
-        ref={scrollRef}
-        className="p-2"
-        style={{ maxHeight: "calc(100% - 8px)" }} // Ensure scroll area works
+const LogPanel: FC<LogPanelProps> = ({ logs, scrollRef, onClear }) => (
+  <Card className="mt-4 bg-gray-800 border-gray-700">
+    <CardHeader className="py-2 flex flex-row items-center justify-between">
+      <CardTitle className="text-sm text-gray-400">Real-Time Log</CardTitle>
+      <Button
+        onClick={onClear}
+        variant="ghost"
+        size="sm"
+        className="text-gray-400 hover:bg-gray-700 hover:text-white h-8 px-2"
       >
-        <div className="grid grid-cols-3 gap-x-2 gap-y-1">
-          {history.length === 0 ? (
-            <span className="col-span-3 text-center text-gray-400">
-              No moves yet
-            </span>
-          ) : (
-            history.map((movePair) => (
-              <React.Fragment key={movePair.moveNumber}>
-                <span className="text-right text-gray-400">
-                  {movePair.moveNumber}.
-                </span>
-                {movePair.white ? (
-                  <span
-                    data-fen={movePair.white.fenAfterMove}
-                    className={cn(
-                      "font-semibold text-gray-200 rounded px-1 cursor-pointer hover:bg-gray-600",
-                      currentFen === movePair.white.fenAfterMove &&
-                        "bg-blue-600"
-                    )}
-                    onClick={() => onMoveSelect(movePair.white.fenAfterMove)}
-                  >
-                    {movePair.white.san}
-                  </span>
-                ) : (
-                  <span></span>
-                )}
-                {movePair.black ? (
-                  <span
-                    data-fen={movePair.black.fenAfterMove}
-                    className={cn(
-                      "font-semibold text-gray-200 rounded px-1 cursor-pointer hover:bg-gray-600",
-                      currentFen === movePair.black.fenAfterMove &&
-                        "bg-blue-600"
-                    )}
-                    onClick={() => onMoveSelect(movePair.black.fenAfterMove)}
-                  >
-                    {movePair.black.san}
-                  </span>
-                ) : (
-                  <span></span>
-                )}
-              </React.Fragment>
-            ))
-          )}
+        Clear Log
+      </Button>
+    </CardHeader>
+    <CardContent className="p-0">
+      <ScrollArea className="h-[200px] p-3">
+        <div ref={scrollRef} className="space-y-1 text-xs font-mono">
+          {logs.map((entry) => (
+            <p
+              key={entry.id}
+              style={{ color: entry.color }}
+              className="break-all whitespace-pre-wrap"
+            >
+              {entry.message}
+            </p>
+          ))}
         </div>
-      </div>
-    </ScrollArea>
-  );
-};
-
-// --- New GameResultDisplay Component ---
-
-interface GameResultDisplayProps {
-  result: string;
-  onReset: () => void;
-}
-
-const GameResultDisplay: FC<GameResultDisplayProps> = ({ result, onReset }) => (
-  <div className="absolute inset-0 z-10 bg-black/70 flex flex-col items-center justify-center space-y-4">
-    <h3 className="text-2xl font-bold text-white">{result}</h3>
-    <Button onClick={onReset} variant="secondary" size="lg">
-      <RefreshCw className="mr-2 h-5 w-5" />
-      Rematch
-    </Button>
-  </div>
+      </ScrollArea>
+    </CardContent>
+  </Card>
 );
 
-// --- Component from ChessGame.tsx (as main App) ---
+// ====================================================================
+// --- MAIN MULTIPLAYER CHESS COMPONENT ---
+// ====================================================================
 
-const START_FEN = new Chess().fen();
-const AUTOPLAY_SPEEDS: Record<string, number> = {
-  "0.5x": 3000,
-  "1x": 1500,
-  "1.5x": 1000,
-  "2x": 750,
-};
-const SPEED_LABELS = Object.keys(AUTOPLAY_SPEEDS); // ["0.5x", "1x", "1.5x", "2x"]
-
-const ChessGame: FC = () => {
-  const [game, setGame] = useState<Chess>(new Chess());
-  // 'fen' is the LIVE game state
-  const [fen, setFen] = useState<string>(START_FEN);
-  // 'displayedFen' is what the user is currently viewing (can be in the past)
-  const [displayedFen, setDisplayedFen] = useState<string>(START_FEN);
-
-  // New structured move history
-  const [moveHistory, setMoveHistory] = useState<MovePair[] | []>([]);
-
-  const [gameStarted, setGameStarted] = useState<boolean>(false);
-  const [players, setPlayers] = useState<Record<"white" | "black", Player>>({
-    white: { name: "White", rating: 1500 },
-    black: { name: "Black", rating: 1500 },
+const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
+  // --- Socket & Auth State ---
+  const [socket, setSocket] = useState<Socket<
+    ServerToClientEvents,
+    ClientToServerEvents
+  > | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>(() => {
+    const saved = getLocalStorageItem(LS_KEY_LOGS);
+    return saved ? (JSON.parse(saved) as LogEntry[]) : [];
   });
-  const [timeControl, setTimeControl] = useState<TimeControl>({
-    name: "Rapid (10+0)",
-    time: 600,
-  });
+
+  // --- Game State ---
+  const [game, setGame] = useState(new Chess());
+  const [fen, setFen] = useState(game.fen());
+  const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">(
     "white"
   );
   const [gameResult, setGameResult] = useState<string | null>(null);
 
-  // New state for autoplay
-  const [isAutoplaying, setIsAutoplaying] = useState<boolean>(false);
-  const [currentSpeedIdx, setCurrentSpeedIdx] = useState<number>(1); // "1x"
+  const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>(() => {
+    const saved = getLocalStorageItem(LS_KEY_GAME_HISTORY);
+    return saved ? (JSON.parse(saved) as GameHistoryEntry[]) : [];
+  });
 
-  const { toast } = useToast();
+  // --- Multiplayer State ---
+  const [gameId, setGameId] = useState<string>(
+    () => getLocalStorageItem(LS_KEY_GAME_ID) || ""
+  );
+  const [isGameActive, setIsGameActive] = useState<boolean>(false);
+  const [players, setPlayers] = useState<{
+    white: string | null;
+    black: string | null;
+  }>({ white: null, black: null });
+  const [myColor, setMyColor] = useState<"white" | "black" | "observer" | null>(
+    null
+  );
+  const [whiteTime, setWhiteTime] = useState(0);
+  const [blackTime, setBlackTime] = useState(0);
+  const [isDrawOffered, setIsDrawOffered] = useState<boolean>(false);
 
-  const handleStartGame = (white: Player, black: Player, tc: TimeControl) => {
-    setPlayers({ white, black });
-    setTimeControl(tc);
-    setGameStarted(true);
-    const newGame = new Chess();
-    setGame(newGame);
-    setFen(newGame.fen());
-    setDisplayedFen(newGame.fen());
-    setMoveHistory([]);
-    setGameResult(null);
-    setBoardOrientation("white");
-    setIsAutoplaying(false);
-  };
+  const [currentTurn, setCurrentTurn] = useState<"white" | "black">("white");
 
-  const onPieceDrop = useCallback(
-    (sourceSquare: string, targetSquare: string): boolean => {
-      // Don't allow moves if game is over OR if user is viewing a past move
-      if (gameResult || fen !== displayedFen) return false;
+  // --- Refs ---
+  const logScrollRef = useRef<HTMLDivElement>(null);
+  const clientTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMoveTimeRef = useRef<number>(Date.now());
 
-      // Stop autoplay on manual move
-      setIsAutoplaying(false);
+  // --- Logging Utility ---
+  const addLog = useCallback((msg: string, color = "#00ff88") => {
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString();
+    const newEntry: LogEntry = {
+      id: crypto.randomUUID(),
+      message: `[${formattedTime}] ${msg}`,
+      color,
+      timestamp: formattedTime,
+    };
+    setLogs((prev) => [...prev, newEntry].slice(-100));
+  }, []);
 
-      const gameCopy = new Chess(game.fen());
-      const move = gameCopy.move({
-        from: sourceSquare,
-        to: targetSquare,
-        promotion: "q", // always promote to a queen for simplicity
-      });
+  const recordMoveToHistory = useCallback(
+    (from: string, to: string, whiteTimeMs: number, blackTimeMs: number) => {
+      const moveIndex = moveHistory.length;
+      const moveNumber = Math.floor(moveIndex / 2) + 1;
+      const color = moveIndex % 2 === 0 ? "white" : "black";
+      const move = `${from}-${to}`;
 
-      if (move === null) return false; // illegal move
-
-      // --- New History Logic ---
-      const fenAfterMove = gameCopy.fen();
-      const lastMove = gameCopy.history({ verbose: true }).slice(-1)[0];
-
-      const newMove: Move = {
-        san: lastMove.san,
-        from: lastMove.from,
-        to: lastMove.to,
-        promotion: lastMove.promotion,
-        fenAfterMove: fenAfterMove,
-        check: lastMove.flags.includes("c"),
-        checkmate: lastMove.flags.includes("m"),
+      const entry: GameHistoryEntry = {
+        id: crypto.randomUUID(),
+        moveNumber,
+        color,
+        move,
+        fen,
+        whiteTime: whiteTimeMs,
+        blackTime: blackTimeMs,
+        timestamp: Date.now(),
       };
 
-      setMoveHistory((prevHistory) => {
-        const newHistory = [...prevHistory];
-        if (lastMove.color === "w") {
-          // New move pair
-          newHistory.push({
-            moveNumber: prevHistory.length + 1,
-            white: newMove,
-          });
-        } else {
-          // Add to existing move pair
-          if (newHistory.length > 0) {
-            newHistory[newHistory.length - 1].black = newMove;
-          }
-        }
-        return newHistory;
+      setGameHistory((prev) => {
+        const updated = [...prev, entry];
+        localStorage.setItem(LS_KEY_GAME_HISTORY, JSON.stringify(updated));
+        return updated;
       });
-      // --- End New History Logic ---
-
-      setGame(gameCopy);
-      setFen(fenAfterMove); // Update live FEN
-      setDisplayedFen(fenAfterMove); // Update displayed FEN
-
-      // ... (rest of game state logic)
-      if (gameCopy.isCheckmate()) {
-        const winner =
-          gameCopy.turn() === "w" ? players.black.name : players.white.name;
-        setGameResult(`${winner} wins by checkmate!`);
-        toast({ title: "Checkmate!", description: `${winner} wins!` });
-      } else if (gameCopy.isDraw()) {
-        setGameResult("Game drawn");
-        toast({ title: "Draw", description: "Game is a draw" });
-      }
-
-      return true;
     },
-    [game, gameResult, players, toast, fen, displayedFen]
+    [moveHistory.length, fen]
   );
 
-  const handleUndo = () => {
-    if (gameResult || moveHistory.length === 0) return;
-    setIsAutoplaying(false);
-
-    const gameCopy = new Chess(fen); // Use the *live* FEN
-    const moveUndone = gameCopy.undo();
-    if (!moveUndone) return; // Should not happen if history is not empty
-
-    const newFen = gameCopy.fen();
-    setGame(gameCopy);
-    setFen(newFen);
-    setDisplayedFen(newFen);
-
-    // Update structured history
-    const newHistory = [...moveHistory];
-    const lastPair = newHistory[newHistory.length - 1];
-
-    if (lastPair.black) {
-      // Remove black's move
-      lastPair.black = undefined;
-    } else {
-      // Remove white's move (the whole pair)
-      newHistory.pop();
-    }
-    setMoveHistory(newHistory);
-  };
-
-  const handleReset = () => {
-    // This now serves as "Rematch"
-    const newGame = new Chess();
-    setGame(newGame);
-    setFen(newGame.fen());
-    setDisplayedFen(newGame.fen());
-    setMoveHistory([]);
-    setGameResult(null);
-    setBoardOrientation("white");
-    setIsAutoplaying(false);
-    // We keep the same players and time control
-  };
-
-  const handleNewGame = () => {
-    // This goes back to setup
-    setGameStarted(false);
-    setGameResult(null);
-    setIsAutoplaying(false);
-  };
-
-  const handleExportPGN = () => {
-    // We use the 'game' object which is already in sync with the latest move
-    const pgn = game.pgn();
-    const blob = new Blob([pgn], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `chess-game-${Date.now()}.pgn`;
-    a.click();
-    toast({ title: "PGN Exported", description: "Game saved successfully" });
-  };
-
-  const handleResign = () => {
-    if (gameResult) return;
-    setIsAutoplaying(false);
-    const winner =
-      game.turn() === "w" ? players.black.name : players.white.name;
-    setGameResult(`${winner} wins by resignation`);
-    toast({ title: "Game Over", description: `${winner} wins by resignation` });
-  };
-
-  const handleOfferDraw = () => {
-    if (gameResult) return;
-    setIsAutoplaying(false);
-    // In a real app, this would send an offer. Here, we'll just accept it.
-    setGameResult("Game drawn by agreement");
-    toast({ title: "Draw Accepted", description: "Game drawn by agreement" });
-  };
-
-  const handleTimeUp = (color: "white" | "black") => {
-    if (gameResult) return;
-    setIsAutoplaying(false);
-    const winner = color === "white" ? players.black.name : players.white.name;
-    setGameResult(`${winner} wins on time`);
-    toast({ title: "Time's Up!", description: `${winner} wins on time` });
-  };
-
-  const getCapturedPieces = (): { white: string[]; black: string[] } => {
-    const gameForCapture = new Chess(displayedFen); // Use displayed FEN for captures
-    const captured: { white: string[]; black: string[] } = {
-      white: [],
-      black: [],
+  // --- Captured Pieces Calculation ---
+  const capturedPieces = useMemo(() => {
+    const piecesOnBoard = {
+      w: { Q: 0, R: 0, B: 0, N: 0, P: 0 },
+      b: { q: 0, r: 0, b: 0, n: 0, p: 0 },
     };
-    const pieceValues: Record<string, string> = {
-      p: "♟",
-      r: "♜",
-      n: "♞",
-      b: "♝",
-      q: "♛",
-      P: "♙",
-      R: "♖",
-      N: "♘",
-      B: "♗",
-      Q: "♕",
+    const initialCounts = {
+      w: { Q: 1, R: 2, B: 2, N: 2, P: 8 },
+      b: { q: 1, r: 2, b: 2, n: 2, p: 8 },
     };
 
-    const allPieces = gameForCapture
-      .board()
-      .flat()
-      .filter((p) => p !== null);
-    const pieceCount: Record<string, number> = {};
+    game.board().forEach((row) => {
+      row.forEach((piece) => {
+        if (piece) {
+          const type = piece.type.toUpperCase();
+          if (piece.color === "w") {
+            piecesOnBoard.w[type as keyof typeof piecesOnBoard.w] =
+              (piecesOnBoard.w[type as keyof typeof piecesOnBoard.w] || 0) + 1;
+          } else {
+            piecesOnBoard.b[
+              piece.type.toLowerCase() as keyof typeof piecesOnBoard.b
+            ] =
+              (piecesOnBoard.b[
+                piece.type.toLowerCase() as keyof typeof piecesOnBoard.b
+              ] || 0) + 1;
+          }
+        }
+      });
+    });
 
-    allPieces.forEach((piece) => {
-      if (piece) {
-        const key = piece.color + piece.type;
-        pieceCount[key] = (pieceCount[key] || 0) + 1;
+    const captured = { white: [] as string[], black: [] as string[] };
+    (
+      Object.keys(initialCounts.w) as Array<keyof typeof initialCounts.w>
+    ).forEach((type) => {
+      const char = type as "Q" | "R" | "B" | "N" | "P";
+      const initial = initialCounts.w[char];
+      const current = piecesOnBoard.w[char];
+      for (let i = 0; i < initial - current; i++) {
+        captured.black.push(char);
+      }
+    });
+    (
+      Object.keys(initialCounts.b) as Array<keyof typeof initialCounts.b>
+    ).forEach((type) => {
+      const char = type as "q" | "r" | "b" | "n" | "p";
+      const initial = initialCounts.b[char];
+      const current = piecesOnBoard.b[char];
+      for (let i = 0; i < initial - current; i++) {
+        captured.white.push(char);
       }
     });
 
-    const starting: Record<string, number> = {
-      wp: 8,
-      wr: 2,
-      wn: 2,
-      wb: 2,
-      wq: 1,
-      bp: 8,
-      br: 2,
-      bn: 2,
-      bb: 2,
-      bq: 1,
-    };
+    return captured;
+  }, [fen, game]);
 
-    for (const [key, count] of Object.entries(starting)) {
-      const missing = count - (pieceCount[key] || 0);
-      const piece = key[1];
-      const symbol =
-        key[0] === "w" ? pieceValues[piece.toUpperCase()] : pieceValues[piece];
+  // --- State Persistence Effects ---
+  useEffect(() => {
+    if (logScrollRef.current) {
+      const viewport = logScrollRef.current.parentElement;
+      if (viewport) viewport.scrollTop = viewport.scrollHeight;
+    }
+    localStorage.setItem(LS_KEY_LOGS, JSON.stringify(logs));
+  }, [logs]);
 
-      for (let i = 0; i < missing; i++) {
-        if (key[0] === "w") captured.white.push(symbol);
-        else captured.black.push(symbol);
-      }
+  useEffect(() => {
+    localStorage.setItem(LS_KEY_GAME_ID, gameId);
+  }, [gameId]);
+
+  useEffect(() => {
+    if (clientTimerRef.current) clearInterval(clientTimerRef.current);
+
+    if (isGameActive && !gameResult) {
+      lastMoveTimeRef.current = Date.now();
+      clientTimerRef.current = setInterval(() => {
+        const now = Date.now();
+        const elapsed = now - lastMoveTimeRef.current;
+        lastMoveTimeRef.current = now;
+
+        const turn = game.turn();
+        setCurrentTurn(turn === "w" ? "white" : "black");
+
+        if (turn === "w") {
+          setWhiteTime((t) => Math.max(0, t - elapsed));
+        } else {
+          setBlackTime((t) => Math.max(0, t - elapsed));
+        }
+      }, 100); // More frequent updates for better accuracy
     }
 
-    // Sort to show more valuable pieces first (approx)
-    const sortOrder = ["♛", "♕", "♜", "♖", "♝", "♗", "♞", "♘", "♟", "♙"];
-    captured.white.sort((a, b) => sortOrder.indexOf(a) - sortOrder.indexOf(b));
-    captured.black.sort((a, b) => sortOrder.indexOf(a) - sortOrder.indexOf(b));
+    return () => {
+      if (clientTimerRef.current) clearInterval(clientTimerRef.current);
+    };
+  }, [isGameActive, gameResult, game]);
 
-    return captured;
-  };
-
-  // --- Move Navigation Logic ---
-  const flatMoves = useMemo(
-    () =>
-      moveHistory
-        .flatMap((pair) => [pair.white, pair.black])
-        .filter((move): move is Move => !!move),
-    [moveHistory]
+  // --- Time Control Persistence ---
+  const [currentTimeControl, setCurrentTimeControl] = useState<TimeControl>(
+    () => {
+      const saved = getLocalStorageItem(LS_KEY_GAME_TIME_CONTROL);
+      return saved ? (JSON.parse(saved) as TimeControl) : TIME_CONTROLS[1];
+    }
   );
 
-  const currentMoveIndex = useMemo(() => {
-    if (displayedFen === START_FEN) return -1;
-    return flatMoves.findIndex((move) => move.fenAfterMove === displayedFen);
-  }, [flatMoves, displayedFen]);
-
-  const handleMoveSelect = (fen: string) => {
-    setIsAutoplaying(false);
-    setDisplayedFen(fen);
-  };
-
-  const handleNavFirst = () => {
-    setIsAutoplaying(false);
-    setDisplayedFen(START_FEN);
-  };
-  const handleNavPrev = () => {
-    setIsAutoplaying(false);
-    if (currentMoveIndex > 0) {
-      setDisplayedFen(flatMoves[currentMoveIndex - 1].fenAfterMove);
-    } else if (currentMoveIndex === 0) {
-      setDisplayedFen(START_FEN);
-    }
-  };
-  const handleNavNext = () => {
-    setIsAutoplaying(false);
-    if (currentMoveIndex < flatMoves.length - 1) {
-      setDisplayedFen(flatMoves[currentMoveIndex + 1].fenAfterMove);
-    }
-  };
-  const handleNavLast = () => {
-    setIsAutoplaying(false);
-    setDisplayedFen(fen); // Jump to live FEN
-  };
-
-  const isLastMove = currentMoveIndex === flatMoves.length - 1;
-  const isFirstMove = currentMoveIndex < 0;
-
-  // Keyboard navigation
+  // --- Socket Connection & Auth ---
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't navigate if user is typing in an input
-      if (e.target instanceof HTMLElement && e.target.tagName === "INPUT")
-        return;
+    if (!token) {
+      addLog("❌ Error: Auth token was not provided.", "red");
+      return;
+    }
 
-      if (e.key === "ArrowLeft") {
-        handleNavPrev();
-      } else if (e.key === "ArrowRight") {
-        if (isAutoplaying) return; // Don't fight autoplay
-        if (isLastMove) {
-          // If on last move, do nothing
-        } else {
-          handleNavNext();
-        }
+    const newSocket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
+      SERVER_URL,
+      { transports: ["websocket"] }
+    );
+    setSocket(newSocket);
+
+    newSocket.on("connect", () => {
+      addLog(`✅ Connected. Socket ID: ${newSocket.id}`, "#00ff88");
+      addLog(`🔐 Sending ${SOCKET_EVENTS.C2S_AUTHENTICATE}...`, "#ffaa00");
+      newSocket.emit(SOCKET_EVENTS.C2S_AUTHENTICATE, { token: token });
+
+      if (gameId && authUserId) {
+        addLog(`🔄 Attempting to rejoin game after reconnection...`, "#ffaa00");
+        setTimeout(() => {
+          newSocket.emit(SOCKET_EVENTS.C2S_JOIN_GAME, {
+            gameId,
+            timeControl: currentTimeControl,
+          });
+        }, 500);
       }
+    });
+
+    newSocket.on("disconnect", () => {
+      addLog("❌ Disconnected from server", "red");
+      setIsGameActive(false);
+    });
+
+    // --- Auth Listeners ---
+    newSocket.on(SOCKET_EVENTS.S2C_AUTH_SUCCESS, (d) => {
+      addLog(`✅ Authenticated as ${d.userId}`, "#00ff88");
+      setAuthUserId(d.userId);
+
+      if (gameId) {
+        addLog(`🔄 Attempting to rejoin game after auth...`, "#ffaa00");
+        setTimeout(() => {
+          newSocket.emit(SOCKET_EVENTS.C2S_JOIN_GAME, {
+            gameId,
+            timeControl: currentTimeControl,
+          });
+        }, 300);
+      }
+    });
+
+    newSocket.on(SOCKET_EVENTS.S2C_ERROR, (d) => {
+      addLog(`❌ Server Error: ${d.message}`, "#ff4444");
+    });
+
+    newSocket.on(SOCKET_EVENTS.SOCKET_ERROR, (d) => {
+      addLog(`❌ Socket Error [${d.context}]: ${d.message}`, "#ff4444");
+    });
+
+    // --- Game Logic Listeners ---
+    newSocket.on(SOCKET_EVENTS.S2C_GAME_STATE, (d) => {
+      addLog(`✅ Joined game. You are ${d.yourColor}.`, "#00ccff");
+      const newGame = new Chess(d.fen);
+      setGame(newGame);
+      setFen(d.fen);
+      setMoveHistory(newGame.history());
+      setPlayers(d.players);
+      setMyColor(d.yourColor);
+      setBoardOrientation(d.yourColor === "black" ? "black" : "white");
+      setWhiteTime(d.whiteTime);
+      setBlackTime(d.blackTime);
+      setCurrentTurn(newGame.turn() === "w" ? "white" : "black");
+      lastMoveTimeRef.current = Date.now();
+      setIsGameActive(true);
+      setGameResult(null);
+      setIsDrawOffered(false);
+      setGameHistory([]);
+      localStorage.setItem(LS_KEY_GAME_HISTORY, JSON.stringify([]));
+    });
+
+    newSocket.on(SOCKET_EVENTS.S2C_PLAYER_JOINED, (d) => {
+      addLog(`👥 ${d.message}`, "#ffaa00");
+      setPlayers(d.players);
+    });
+
+    newSocket.on(SOCKET_EVENTS.S2C_MOVE_MADE, (d) => {
+      addLog(`♟ Move: ${d.from}-${d.to}`, "#dddddd");
+      const newGame = new Chess(d.newFen);
+      setGame(newGame);
+      setFen(d.newFen);
+      const history = newGame.history();
+      setMoveHistory(history);
+      setWhiteTime(d.whiteTime);
+      setBlackTime(d.blackTime);
+      setCurrentTurn(newGame.turn() === "w" ? "white" : "black");
+      recordMoveToHistory(d.from, d.to, d.whiteTime, d.blackTime);
+      lastMoveTimeRef.current = Date.now();
+      setIsDrawOffered(false);
+    });
+
+    newSocket.on(SOCKET_EVENTS.S2C_GAME_OVER, (d) => {
+      addLog(`🏁 Game Over: ${d.reason}.`, "#ff4444");
+      setGameResult(d.reason);
+      setIsGameActive(false);
+    });
+
+    newSocket.on(SOCKET_EVENTS.S2C_DRAW_OFFERED, (d) => {
+      addLog(`🤝 Draw offer from: ${d.fromPlayerId}`, "#66aaff");
+      setIsDrawOffered(true);
+    });
+
+    return () => {
+      newSocket.disconnect();
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentMoveIndex, isLastMove, isAutoplaying]); // Re-bind when index changes
+  }, [token, addLog, recordMoveToHistory, gameId, currentTimeControl]);
 
-  // Autoplay logic
-  useEffect(() => {
-    if (isAutoplaying && !isLastMove) {
-      const speed = AUTOPLAY_SPEEDS[SPEED_LABELS[currentSpeedIdx]];
-      const timer = setTimeout(() => {
-        // handleNavNext() stops autoplay, so we do it manually
-        if (currentMoveIndex < flatMoves.length - 1) {
-          setDisplayedFen(flatMoves[currentMoveIndex + 1].fenAfterMove);
-        } else {
-          setIsAutoplaying(false); // Stop at the end
-        }
-      }, speed);
-      return () => clearTimeout(timer);
-    } else if (isAutoplaying && isLastMove) {
-      setIsAutoplaying(false); // Stop at the end
-    }
-  }, [
-    isAutoplaying,
-    displayedFen,
-    currentMoveIndex,
-    flatMoves,
-    isLastMove,
-    currentSpeedIdx,
-  ]);
+  // --- Game Action Emitters ---
+  const handleJoinGame = (gameId: string, timeControl: TimeControl) => {
+    if (!socket || !authUserId)
+      return addLog("❌ Not authenticated or connected.", "red");
 
-  const toggleAutoplay = () => {
-    const newIsAutoplaying = !isAutoplaying;
-    setIsAutoplaying(newIsAutoplaying);
+    setCurrentTimeControl(timeControl);
+    localStorage.setItem(LS_KEY_GAME_TIME_CONTROL, JSON.stringify(timeControl));
 
-    // If starting play from the end, restart from the beginning
-    if (newIsAutoplaying && isLastMove) {
-      setDisplayedFen(START_FEN);
-    }
+    socket.emit(SOCKET_EVENTS.C2S_JOIN_GAME, { gameId, timeControl });
+    addLog(`🎮 Sent ${SOCKET_EVENTS.C2S_JOIN_GAME} for ${gameId}`, "#ffaa00");
   };
 
-  const cycleSpeed = () => {
-    setCurrentSpeedIdx((prevIdx) => (prevIdx + 1) % SPEED_LABELS.length);
+  const onDrop = (sourceSquare: Square, targetSquare: Square): boolean => {
+    if (!socket || !isGameActive || !myColor || gameResult) return false;
+
+    const turn = game.turn();
+    const isWhiteTurn = turn === "w";
+    const isMyTurn =
+      (isWhiteTurn && myColor === "white") ||
+      (!isWhiteTurn && myColor === "black");
+
+    if (!isMyTurn) {
+      const currentPlayer = isWhiteTurn ? "White" : "Black";
+      addLog(`❌ It's ${currentPlayer}'s turn to move.`, "red");
+      return false;
+    }
+
+    const gameCopy = new Chess(fen);
+    let move: Move | null = null;
+    try {
+      move = gameCopy.move({
+        from: sourceSquare,
+        to: targetSquare,
+        promotion: "q",
+      });
+    } catch (e) {
+      return false;
+    }
+
+    if (move === null) {
+      addLog("❌ Illegal move.", "red");
+      return false;
+    }
+
+    setFen(gameCopy.fen());
+    setGame(gameCopy);
+
+    addLog(
+      `🕹 Sent ${SOCKET_EVENTS.C2S_MAKE_MOVE}: ${move.from}-${move.to}`,
+      "#dddddd"
+    );
+    socket.emit(SOCKET_EVENTS.C2S_MAKE_MOVE, {
+      gameId: gameId,
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion,
+    });
+
+    return true;
   };
-  // --- End Navigation Logic ---
 
-  const currentTurn = game.turn() === "w" ? "white" : "black";
-  const captured = getCapturedPieces();
+  const handleResign = () => {
+    if (!socket || !isGameActive) return;
+    socket.emit(SOCKET_EVENTS.C2S_RESIGN, { gameId: gameId });
+    addLog(`🏳️ Sent ${SOCKET_EVENTS.C2S_RESIGN}`, "#ff4444");
+  };
 
-  if (!gameStarted) {
+  const handleOfferDraw = () => {
+    if (!socket || !isGameActive) return;
+    socket.emit(SOCKET_EVENTS.C2S_OFFER_DRAW, { gameId: gameId });
+    addLog(`🤝 Sent ${SOCKET_EVENTS.C2S_OFFER_DRAW}`, "#66aaff");
+  };
+
+  const handleAcceptDraw = () => {
+    if (!socket || !isGameActive) return;
+    socket.emit(SOCKET_EVENTS.C2S_ACCEPT_DRAW, { gameId: gameId });
+    addLog(`🤝 Sent ${SOCKET_EVENTS.C2S_ACCEPT_DRAW}`, "#66aaff");
+  };
+
+  // --- RENDER LOGIC ---
+
+  if (!token) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4 bg-gray-800">
-        <GameSetup onStartGame={handleStartGame} />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+        <Card className="w-full max-w-md mx-auto bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-destructive">
+              Authentication Error
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>
+              No authentication token was provided. Unable to connect to the
+              game server.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isGameActive) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+        <GameSetup
+          onJoinGame={handleJoinGame}
+          gameId={gameId}
+          setGameId={setGameId}
+          disabled={!socket || !authUserId}
+        />
+        <LogPanel logs={logs} onClear={() => setLogs([])} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col md:flex-row items-start justify-center gap-4 p-4 bg-gray-800 min-h-screen text-white">
-      {/* Mobile-first: Black Player Info (hidden on desktop) */}
-      <div className="w-full md:hidden">
-        <PlayerInfo
-          player={players.black}
-          isCurrentTurn={currentTurn === "black"}
-          isActive={gameStarted && !gameResult}
-          onTimeUp={() => handleTimeUp("black")}
-          initialTime={timeControl.time}
-          capturedPieces={captured.white} // Black captures white pieces
-        />
-      </div>
+    <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4 font-sans">
+      <div className="w-full max-w-6xl">
+        <h1 className="text-3xl font-bold text-center mb-2 text-indigo-400">
+          Multiplayer Chess
+        </h1>
+        <p className="text-center text-gray-400 mb-4">Game ID: {gameId}</p>
 
-      {/* Left Column / Mobile Main: Board */}
-      <div className="w-full md:flex-1 md:max-w-[70vh] aspect-square shadow-lg rounded-lg overflow-hidden">
-        <Chessboard
-          position={displayedFen} // Board now shows the displayed FEN
-          onPieceDrop={onPieceDrop}
-          boardOrientation={boardOrientation}
-          customBoardStyle={{
-            borderRadius: "0.5rem",
-            boxShadow: "0 8px 24px -4px rgba(0,0,0,0.1)",
-          }}
-          // Disable piece drag if viewing history
-          arePiecesDraggable={displayedFen === fen && !gameResult}
-        />
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
+          {/* --- Left Column: Board & Timers --- */}
+          <div className="flex flex-col space-y-4">
+            <PlayerTimer
+              playerName={players.black}
+              time={blackTime}
+              isCurrentTurn={currentTurn === "black"}
+              isMyInfo={myColor === "black"}
+              playerColor="black"
+            />
 
-      {/* Mobile-first: White Player Info (hidden on desktop) */}
-      <div className="w-full md:hidden">
-        <PlayerInfo
-          player={players.white}
-          isCurrentTurn={currentTurn === "white"}
-          isActive={gameStarted && !gameResult}
-          onTimeUp={() => handleTimeUp("white")}
-          initialTime={timeControl.time}
-          capturedPieces={captured.black} // White captures black pieces
-        />
-      </div>
+            <Chessboard
+              position={fen}
+              onPieceDrop={onDrop}
+              boardOrientation={boardOrientation}
+              arePiecesDraggable={!gameResult && currentTurn === myColor}
+              customBoardStyle={{
+                borderRadius: "4px",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+              }}
+            />
 
-      {/* Right Column (Desktop) / Bottom Panel (Mobile) */}
-      <div className="flex flex-col w-full md:w-[350px] lg:w-[400px] md:h-[70vh] bg-gray-900 shadow-lg rounded-lg overflow-hidden">
-        {/* Desktop-only: Black Player Info */}
-        <div className="hidden md:block">
-          <PlayerInfo
-            player={players.black}
-            isCurrentTurn={currentTurn === "black"}
-            isActive={gameStarted && !gameResult}
-            onTimeUp={() => handleTimeUp("black")}
-            initialTime={timeControl.time}
-            capturedPieces={captured.white} // Black captures white pieces
-          />
-        </div>
-
-        {/* Move History & Nav - This needs to be shorter on mobile */}
-        <div className="relative flex-1 bg-gray-800 flex flex-col h-[40vh] md:h-auto">
-          {gameResult && (
-            <GameResultDisplay result={gameResult} onReset={handleReset} />
-          )}
-          <MoveHistory
-            history={moveHistory}
-            currentFen={displayedFen}
-            onMoveSelect={handleMoveSelect}
-          />
-          {/* --- New Navigation Controls --- */}
-          <div className="flex items-center justify-center gap-1 p-1 bg-gray-700">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNavFirst}
-              disabled={isFirstMove}
-              className="w-8 h-8 hover:bg-gray-600"
-            >
-              <ChevronFirst className="h-5 w-5 m-0" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNavPrev}
-              disabled={isFirstMove}
-              className="w-8 h-8 hover:bg-gray-600"
-            >
-              <ChevronLeft className="h-5 w-5 m-0" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleAutoplay}
-              className="w-8 h-8 hover:bg-gray-600"
-            >
-              {isAutoplaying ? (
-                <Pause className="h-5 w-5 m-0" />
-              ) : (
-                <Play className="h-5 w-5 m-0" />
-              )}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNavNext}
-              disabled={isLastMove}
-              className="w-8 h-8 hover:bg-gray-600"
-            >
-              <ChevronRight className="h-5 w-5 m-0" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNavLast}
-              disabled={isLastMove}
-              className="w-8 h-8 hover:bg-gray-600"
-            >
-              <ChevronLast className="h-5 w-5 m-0" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              onClick={cycleSpeed}
-              className="w-12 h-8 hover:bg-gray-600 text-xs px-1"
-            >
-              {SPEED_LABELS[currentSpeedIdx]}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleExportPGN}
-              title="Export PGN"
-              className="w-8 h-8 hover:bg-gray-600"
-            >
-              <Download className="h-5 w-5 m-0" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Desktop-only: White Player Info */}
-        <div className="hidden md:block">
-          <PlayerInfo
-            player={players.white}
-            isCurrentTurn={currentTurn === "white"}
-            isActive={gameStarted && !gameResult}
-            onTimeUp={() => handleTimeUp("white")}
-            initialTime={timeControl.time}
-            capturedPieces={captured.black} // White captures black pieces
-          />
-        </div>
-
-        {/* Game Controls */}
-        <div className="flex items-center justify-between p-2 bg-gray-700">
-          <div className="flex gap-2">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-10 h-10 hover:bg-gray-600"
-                  disabled={!!gameResult}
-                  title="Offer Draw"
-                >
-                  <Handshake className="h-5 w-5 m-0" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Offer Draw</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to offer a draw?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleOfferDraw}>
-                    Offer Draw
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-10 h-10 hover:bg-gray-600"
-                  disabled={!!gameResult}
-                  title="Resign"
-                >
-                  <Flag className="h-5 w-5 m-0" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Resign Game</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to resign?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResign}>
-                    Resign
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <PlayerTimer
+              playerName={players.white}
+              time={whiteTime}
+              isCurrentTurn={currentTurn === "white"}
+              isMyInfo={myColor === "white"}
+              playerColor="white"
+            />
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-10 h-10 hover:bg-gray-600"
-              onClick={handleUndo}
-              disabled={
-                moveHistory.length === 0 || !!gameResult || displayedFen !== fen
-              }
-              title="Undo Move"
-            >
-              <Undo className="h-5 w-5 m-0" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-10 h-10 hover:bg-gray-600"
-              onClick={() =>
-                setBoardOrientation((prev) =>
-                  prev === "white" ? "black" : "white"
-                )
-              }
-              title="Flip Board"
-            >
-              <FlipVertical className="h-5 w-5 m-0" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-10 h-10 hover:bg-gray-600"
-              onClick={handleNewGame}
-              title="New Game"
-            >
-              <RotateCcw className="h-5 w-5 m-0" />
-            </Button>
+          {/* --- Right Column: Info, History, Logs --- */}
+          <div className="space-y-4">
+            <Card className="bg-gray-800 border-gray-700 text-white">
+              <CardHeader className="py-2">
+                <CardTitle className="text-lg">Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Badge className="bg-indigo-600 hover:bg-indigo-700">
+                    You are:{" "}
+                    <strong className="ml-1 capitalize">{myColor}</strong>
+                  </Badge>
+                  <div className="flex items-center gap-2 text-sm text-indigo-300">
+                    <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></span>
+                    {currentTurn === myColor
+                      ? "Your turn to move"
+                      : `${currentTurn === "white" ? "White" : "Black"}'s turn`}
+                  </div>
+                </div>
+                {gameResult && (
+                  <div className="mt-4 p-4 bg-red-800 text-white rounded-lg">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5" />
+                      Game Over
+                    </h3>
+                    <p>{gameResult}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <CapturedPiecesDisplay captured={capturedPieces} />
+
+            <MoveHistoryPanel
+              moveHistory={moveHistory}
+              gameHistory={gameHistory}
+              currentTurn={currentTurn}
+            />
+
+            {/* --- Game Controls --- */}
+            <Card className="bg-gray-800 border-gray-700 text-white">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setBoardOrientation((o) =>
+                        o === "white" ? "black" : "white"
+                      )
+                    }
+                    className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+                  >
+                    <FlipVertical className="mr-2 h-4 w-4" />
+                    Flip Board
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Logic to save PGN
+                    }}
+                    className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+                    disabled={moveHistory.length === 0}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export PGN
+                  </Button>
+                </div>
+
+                {isGameActive && !gameResult && myColor !== "observer" && (
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-700">
+                    {isDrawOffered && currentTurn !== myColor ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={handleAcceptDraw}
+                      >
+                        <Handshake className="mr-2 h-4 w-4" />
+                        Accept Draw
+                      </Button>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentTurn !== myColor || isDrawOffered}
+                            className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+                          >
+                            <Handshake className="mr-2 h-4 w-4" />
+                            {isDrawOffered ? "Draw Offered" : "Offer Draw"}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-gray-800 border-gray-700 text-white">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Offer Draw</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to offer a draw to your
+                              opponent?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-gray-700 border-gray-600 hover:bg-gray-600">
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleOfferDraw}
+                              className="bg-indigo-600 hover:bg-indigo-700"
+                            >
+                              Offer Draw
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                          <Flag className="mr-2 h-4 w-4" />
+                          Resign
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-gray-800 border-gray-700 text-white">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Resign Game</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to resign? This will end the
+                            game immediately.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-gray-700 border-gray-600 hover:bg-gray-600">
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleResign}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Resign
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <LogPanel logs={logs} onClear={() => setLogs([])} />
           </div>
         </div>
       </div>
@@ -1063,4 +1204,4 @@ const ChessGame: FC = () => {
   );
 };
 
-export default ChessGame;
+export default MultiplayerChess;
