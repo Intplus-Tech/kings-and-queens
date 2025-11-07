@@ -100,32 +100,15 @@ const LS_KEY_GAME_ID = "multiplayer_chess_gameId";
 const LS_KEY_LOGS = "multiplayer_chess_logs";
 const SERVER_URL = "https://knq-be.onrender.com/";
 
+// This type is no longer used for sending data,
+// but can be kept for other client-side uses if needed.
 export type TimeControl = {
   name: string;
-  time: number; // Time in *milliseconds* for the server
-  increment: number; // Increment in *milliseconds*
+  time: number; // Time in *milliseconds* for the client
+  increment: number; // Increment in *milliseconds* for the client
 };
 
-// NOTE: The backend `gameRoomManager` expects timeControl in *seconds*.
-// The frontend `TIME_CONTROLS` type defines time in *milliseconds*.
-// This seems to be a discrepancy. The `GameSetup` component
-// passes the `timeControl` object directly, which has `time` in `ms`.
-// The backend's `joinScheduledGame` handler, however, expects
-// `timeControl.base` and `timeControl.increment` in *seconds*.
-//
-// For this fix, I am ASSUMING the backend logic is correct and
-// that the time received from the server (whiteTime, blackTime)
-// is in *SECONDS* as defined in `gameRoomManager.ts`.
-// I will multiply by 1000 when setting client state.
-//
-// The `TIME_CONTROLS` array values (e.g., 60000) are likely
-// being misinterpreted by the backend, which expects `base: 60`.
-// This is a separate issue from the timer *display* logic.
-// The `GameSetup` component should probably be sending
-// `{ base: 60, increment: 0 }` instead of `{ name: "...", time: 60000, ... }`.
-//
-// For now, I will fix the countdown timer based on server data.
-
+// This array is no longer used by the GameSetup component.
 export const TIME_CONTROLS: TimeControl[] = [
   { name: "Bullet (1+0)", time: 60 * 1000, increment: 0 * 1000 },
   { name: "Blitz (3+0)", time: 180 * 1000, increment: 0 * 1000 },
@@ -184,12 +167,9 @@ interface ServerToClientEvents {
 
 interface ClientToServerEvents {
   [SOCKET_EVENTS.C2S_AUTHENTICATE]: (d: { token: string }) => void;
-  // This payload should probably be { gameId: string, timeControl: { base: number, increment: number } }
-  // based on the backend logic. The frontend is currently sending the TimeControl object.
-  [SOCKET_EVENTS.C2S_JOIN_GAME]: (d: {
-    gameId: string;
-    timeControl: TimeControl;
-  }) => void;
+  // --- UPDATED TYPE ---
+  // Client no longer sends time control. Server determines it.
+  [SOCKET_EVENTS.C2S_JOIN_GAME]: (d: { gameId: string }) => void;
   [SOCKET_EVENTS.C2S_MAKE_MOVE]: (d: {
     gameId: string;
     from: string;
@@ -402,9 +382,9 @@ const PlayerTimer: FC<PlayerTimerProps> = ({
   );
 };
 
-// --- Game Setup (omitted for brevity, assume imported or defined) ---
+// --- Game Setup ---
 interface GameSetupProps {
-  onJoinGame: (gameId: string, timeControl: TimeControl) => void;
+  onJoinGame: (gameId: string) => void; // Updated: No longer takes timeControl
   gameId: string;
   setGameId: (id: string) => void;
   disabled: boolean;
@@ -415,13 +395,11 @@ const GameSetup: FC<GameSetupProps> = ({
   setGameId,
   disabled,
 }) => {
-  const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]); // Default to Blitz (3+0)
+  // const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]); // No longer needed
 
   const handleJoin = () => {
-    // TODO: This should be converted to { base, increment } in seconds
-    // e.g., onJoinGame(gameId, { base: 180, increment: 0 });
-    // For now, passing the object as-is to match existing code.
-    onJoinGame(gameId, selectedTime);
+    // Pass only the gameId. The server will provide the time control.
+    onJoinGame(gameId);
   };
 
   return (
@@ -444,6 +422,7 @@ const GameSetup: FC<GameSetupProps> = ({
             className="flex-1 bg-gray-700 border-gray-600 text-white"
           />
         </div>
+        {/* --- REMOVED TIME CONTROL BLOCK ---
         <div className="space-y-2">
           <Label htmlFor="time-control">Time Control (for new games)</Label>
           <Select
@@ -468,6 +447,7 @@ const GameSetup: FC<GameSetupProps> = ({
             </SelectContent>
           </Select>
         </div>
+        --- END REMOVED BLOCK --- */}
         <Button
           onClick={handleJoin}
           disabled={!gameId.trim() || disabled}
@@ -563,8 +543,6 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
 
   // --- Refs ---
   const logScrollRef = useRef<HTMLDivElement>(null);
-  // --- This ref is no longer needed for the new timer logic ---
-  // const lastMoveTimeRef = useRef<number>(Date.now());
   const clientTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- Logging Utility ---
@@ -683,7 +661,7 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
     }
   }, [game, myColor, addLog]);
 
-  // --- (REFACTORED) Client-Side Countdown Timer ---
+  // --- Client-Side Countdown Timer ---
   useEffect(() => {
     // Clear any existing timer when dependencies change
     if (clientTimerRef.current) {
@@ -813,10 +791,17 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
   }, [token, addLog]);
 
   // --- Game Action Emitters ---
-  const handleJoinGame = (gameId: string, timeControl: TimeControl) => {
+  const handleJoinGame = (gameId: string) => {
+    // Updated: No longer takes timeControl
     if (!socket || !authUserId)
       return addLog("❌ Not authenticated or connected.", "red");
-    socket.emit(SOCKET_EVENTS.C2S_JOIN_GAME, { gameId, timeControl });
+
+    // --- UPDATED LOGIC ---
+    // Client just sends gameId. Server looks up time control.
+    socket.emit(SOCKET_EVENTS.C2S_JOIN_GAME, {
+      gameId,
+    });
+
     addLog(`🎮 Sent ${SOCKET_EVENTS.C2S_JOIN_GAME} for ${gameId}`, "#ffaa00");
   };
 
