@@ -591,7 +591,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       socket.off(SOCKET_EVENTS.S2C_DRAW_ACCEPTED, handleDrawAccepted);
       socket.off(SOCKET_EVENTS.S2C_DRAW_REJECTED, handleDrawRejected);
     };
-  }, [socket, chessGame, addLog, updateTimersFromServer, players]);
+  }, [socket, chessGame, addLog, updateTimersFromServer]);
 
   // Check detection
   React.useEffect(() => {

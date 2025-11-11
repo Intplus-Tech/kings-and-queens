@@ -34,10 +34,9 @@ export const GameBoard: FC = () => {
     return success;
   };
 
-  // Highlight king when in check
-  const squareStyles = useMemo(() => {
+  // Compute check state (memoized to prevent infinite renders)
+  const checkState = useMemo(() => {
     try {
-      // Prefer chess.js built-in detection when available
       const inCheck =
         typeof game?.in_check === "function"
           ? game.in_check()
@@ -50,6 +49,17 @@ export const GameBoard: FC = () => {
           : typeof game?.isCheckmate === "function"
           ? game.isCheckmate()
           : false;
+
+      return { inCheck, inCheckmate };
+    } catch (e) {
+      return { inCheck: false, inCheckmate: false };
+    }
+  }, [fen]); // fen changes when game state updates
+
+  // Highlight king when in check
+  const squareStyles = useMemo(() => {
+    try {
+      const { inCheck, inCheckmate } = checkState;
 
       if (!inCheck && !inCheckmate) return {};
 
@@ -94,20 +104,9 @@ export const GameBoard: FC = () => {
     }
 
     return {};
-  }, [fen]);
+  }, [fen, checkState]);
 
-  const inCheck =
-    typeof game?.in_check === "function"
-      ? game.in_check()
-      : typeof game?.isCheck === "function"
-      ? game.isCheck()
-      : false;
-  const inCheckmate =
-    typeof game?.in_checkmate === "function"
-      ? game.in_checkmate()
-      : typeof game?.isCheckmate === "function"
-      ? game.isCheckmate()
-      : false;
+  const { inCheck, inCheckmate } = checkState;
 
   return (
     <div className="relative">
