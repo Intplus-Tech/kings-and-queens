@@ -36,29 +36,106 @@ export const GameBoard: FC = () => {
 
   // Highlight king when in check
   const squareStyles = useMemo(() => {
-    // Parse FEN to detect check
-    const fenParts = fen.split(" ");
-    const isWhiteToMove = fenParts[1] === "w";
+    try {
+      // Prefer chess.js built-in detection when available
+      const inCheck =
+        typeof game?.in_check === "function"
+          ? game.in_check()
+          : typeof game?.isCheck === "function"
+          ? game.isCheck()
+          : false;
+      const inCheckmate =
+        typeof game?.in_checkmate === "function"
+          ? game.in_checkmate()
+          : typeof game?.isCheckmate === "function"
+          ? game.isCheckmate()
+          : false;
 
-    // Simplified check detection - can be enhanced with chess.js
-    if (fen) {
-      // Return empty for now - enhanced check highlighting would go here
+      if (!inCheck && !inCheckmate) return {};
+
+      const kingColor = typeof game?.turn === "function" ? game.turn() : null; // 'w' or 'b' (side to move)
+      const board = typeof game?.board === "function" ? game.board() : null;
+      if (!board || !kingColor) return {};
+
+      // find king square (the king of the side to move is the one being checked)
+      for (let r = 0; r < board.length; r++) {
+        for (let f = 0; f < board[r].length; f++) {
+          const piece = board[r][f];
+          if (!piece) continue;
+          const isKing = piece.type === "k" || piece.type === "K";
+          const colorMatches =
+            (kingColor === "w" && piece.color === "w") ||
+            (kingColor === "b" && piece.color === "b");
+          if (isKing && colorMatches) {
+            const file = String.fromCharCode(97 + f); // a-h
+            const rank = 8 - r; // 8-1
+            const square = `${file}${rank}`;
+
+            // Use a strong radial gradient for check, and a darker variant for checkmate
+            const background = inCheckmate
+              ? "radial-gradient(circle, rgba(255,0,0,0.95) 0%, rgba(0,0,0,0.4) 60%)"
+              : "radial-gradient(circle, rgba(255,0,0,0.85) 0%, rgba(255,0,0,0.12) 60%, transparent 70%)";
+
+            return {
+              [square]: {
+                background,
+                boxShadow: inCheckmate
+                  ? "0 0 30px 8px rgba(255,0,0,0.6)"
+                  : "0 0 18px 4px rgba(255,0,0,0.45)",
+                transition: "box-shadow 300ms ease, background 300ms ease",
+              },
+            };
+          }
+        }
+      }
+    } catch (e) {
+      // ignore and return no styles
       return {};
     }
+
     return {};
   }, [fen]);
 
+  const inCheck =
+    typeof game?.in_check === "function"
+      ? game.in_check()
+      : typeof game?.isCheck === "function"
+      ? game.isCheck()
+      : false;
+  const inCheckmate =
+    typeof game?.in_checkmate === "function"
+      ? game.in_checkmate()
+      : typeof game?.isCheckmate === "function"
+      ? game.isCheckmate()
+      : false;
+
   return (
-    <Chessboard
-      position={fen}
-      onPieceDrop={onDrop}
-      boardOrientation={boardOrientation}
-      arePiecesDraggable={!gameResult && isMyTurn}
-      customSquareStyles={squareStyles}
-      customBoardStyle={{
-        borderRadius: "4px",
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
-      }}
-    />
+    <div className="relative">
+      <Chessboard
+        position={fen}
+        onPieceDrop={onDrop}
+        boardOrientation={boardOrientation}
+        arePiecesDraggable={!gameResult && isMyTurn}
+        customSquareStyles={squareStyles}
+        customBoardStyle={{
+          borderRadius: "4px",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+        }}
+      />
+
+      {/* Overlay banner for check / checkmate */}
+      {(inCheck || inCheckmate) && (
+        <div className="pointer-events-none absolute inset-0 flex items-start justify-center">
+          <div
+            className={`mt-4 rounded-md px-4 py-2 font-semibold text-white ${
+              inCheckmate ? "bg-red-700/90" : "bg-orange-600/90"
+            }`}
+            style={{ backdropFilter: "blur(4px)" }}
+          >
+            {inCheckmate ? "Checkmate" : "Check"}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

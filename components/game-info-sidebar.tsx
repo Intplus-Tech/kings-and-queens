@@ -23,9 +23,9 @@ export const GameInfoSidebar: FC = () => {
     <>
       <GameStatus myColor={myColor} gameResult={gameResult} />
       <CapturedPiecesDisplay captured={capturedPieces} />
-      <MoveHistoryPanel moveHistory={moveHistory} />
+      {/* <MoveHistoryPanel moveHistory={moveHistory} /> */}
       <GameControls />
-      <LogPanel logs={logs} onClear={clearLogs} />
+      {/* <LogPanel logs={logs} onClear={clearLogs} /> */}
       <DrawOfferModal />
       <DrawOfferNotification />
     </>

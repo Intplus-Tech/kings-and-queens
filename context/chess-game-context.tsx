@@ -22,6 +22,7 @@ import type {
   DrawOfferState,
 } from "@/lib/chess-types";
 import { getLocalStorageItem, setLocalStorageItem } from "@/lib/chess-utils";
+import { Player } from "@/types/player";
 
 // ====================================================================
 // Context Type Definition
@@ -38,6 +39,7 @@ interface ChessGameContextValue {
   gameId: string;
   myColor: "white" | "black" | "observer" | null;
   players: PlayerInfo;
+  playersInfo: Record<string, Player | null>;
   drawOffer: DrawOfferState;
   drawResponse: "accepted" | "rejected" | null;
 
@@ -104,6 +106,51 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   // --- Game Logic Hooks ---
   const chessGame = useChessGame();
 
+  // ====================================================================
+  // Fetch player info on client
+  // ====================================================================
+
+  const playerCache = new Map<string, Player | null>();
+
+  async function fetchPlayerById(
+    id: string,
+    token?: string
+  ): Promise<Player | null> {
+    if (!id) return null;
+
+    if (playerCache.has(id)) return playerCache.get(id) || null;
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/players/${id}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
+        console.warn("Failed to fetch player", id, res.status);
+        playerCache.set(id, null);
+        return null;
+      }
+
+      const json = await res.json();
+      const player: Player | null = json?.data ?? null;
+
+      playerCache.set(id, player);
+      return player;
+    } catch (err) {
+      console.error("Error fetching player", id, err);
+      playerCache.set(id, null);
+      return null;
+    }
+  }
+  // ====================================================================
+
   // --- State Hooks ---
   const [gameId, setGameIdState] = React.useState<string>(
     () => getLocalStorageItem(LS_KEY_GAME_ID) || ""
@@ -130,6 +177,9 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     "white" | "black"
   >("white");
   const [authUserId, setAuthUserId] = React.useState<string | null>(null);
+  const [playersInfo, setPlayersInfo] = React.useState<
+    Record<string, Player | null>
+  >({});
 
   // --- Utility Hooks ---
   const { logs, addLog, clearLogs } = useGameLogs();
@@ -149,6 +199,32 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
   // --- Socket Hook ---
   const { socket, isConnected } = useSocket(token);
+
+  // ====================================================================
+  // Resolver: Fetch and cache Player objects from IDs
+  // ====================================================================
+
+  const resolveAndCachePlayers = useCallback(
+    async (ids: { white: string | null; black: string | null }) => {
+      if (!ids.white && !ids.black) return;
+      try {
+        const [whitePlayer, blackPlayer] = await Promise.all([
+          ids.white ? fetchPlayerById(ids.white, token) : Promise.resolve(null),
+          ids.black ? fetchPlayerById(ids.black, token) : Promise.resolve(null),
+        ]);
+        setPlayersInfo((prev) => ({
+          ...prev,
+          ...(ids.white && whitePlayer ? { [ids.white]: whitePlayer } : {}),
+          ...(ids.black && blackPlayer ? { [ids.black]: blackPlayer } : {}),
+        }));
+      } catch (err) {
+        console.error("Failed to resolve players", err);
+      }
+    },
+    [token]
+  );
+
+  // playersInfo cache is maintained for UI lookups; avoid noisy logging in render
 
   // ====================================================================
   // Game State Updater
@@ -227,7 +303,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
       // Emit to server
       addLog(`Sent move: ${move.from}-${move.to}`, "#dddddd");
-      socket.emit(SOCKET_EVENTS.C2S_MAKE_MOVE, {
+      socket?.emit(SOCKET_EVENTS.C2S_MAKE_MOVE, {
         gameId,
         from: move.from,
         to: move.to,
@@ -251,13 +327,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
   const resign = useCallback(() => {
     if (!isGameActive) return;
-    socket.emit(SOCKET_EVENTS.C2S_RESIGN, { gameId });
+    socket?.emit(SOCKET_EVENTS.C2S_RESIGN, { gameId });
     addLog("Sent resign", "#ff4444");
   }, [isGameActive, gameId, socket, addLog]);
 
   const offerDraw = useCallback(() => {
     if (!isGameActive || drawOffer.isPending) return;
-    socket.emit(SOCKET_EVENTS.C2S_OFFER_DRAW, { gameId });
+    socket?.emit(SOCKET_EVENTS.C2S_OFFER_DRAW, { gameId });
     addLog("Draw offer sent. Waiting for response...", "#66aaff");
     setDrawOffer({
       isPending: true,
@@ -269,14 +345,14 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
   const acceptDraw = useCallback(() => {
     if (!isGameActive || !drawOffer.isPending) return;
-    socket.emit(SOCKET_EVENTS.C2S_ACCEPT_DRAW, { gameId });
+    socket?.emit(SOCKET_EVENTS.C2S_ACCEPT_DRAW, { gameId });
     addLog("Draw offer accepted", "#66aaff");
     setDrawResponse("accepted");
   }, [isGameActive, gameId, socket, addLog, drawOffer.isPending]);
 
   const rejectDraw = useCallback(() => {
     if (!isGameActive || !drawOffer.isPending) return;
-    socket.emit(SOCKET_EVENTS.C2S_REJECT_DRAW, { gameId });
+    socket?.emit(SOCKET_EVENTS.C2S_REJECT_DRAW, { gameId });
     addLog("Draw offer rejected", "#ff6666");
     setDrawOffer({
       isPending: false,
@@ -294,7 +370,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
         return;
       }
 
-      socket.emit(SOCKET_EVENTS.C2S_JOIN_GAME, { gameId: id });
+      socket?.emit(SOCKET_EVENTS.C2S_JOIN_GAME, { gameId: id });
       addLog(`Sent join game: ${id}`, "#ffaa00");
     },
     [isConnected, authUserId, socket, addLog]
@@ -399,6 +475,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       addLog(`Joined game. You are ${d.yourColor}`, "#00ccff");
       chessGame.loadGameFromFen(d.fen);
       setPlayers(d.players);
+      void resolveAndCachePlayers(d.players);
       setMyColor(d.yourColor);
       setBoardOrientation(d.yourColor === "black" ? "black" : "white");
       updateTimersFromServer(d.whiteTime, d.blackTime);
@@ -420,6 +497,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       console.log("[v0] Context: Player joined:", d.message);
       addLog(`${d.message}`, "#ffaa00");
       setPlayers(d.players);
+      void resolveAndCachePlayers(d.players);
     };
 
     const handleMoveMade = (d: {
@@ -452,14 +530,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       setIsGameActive(false);
     };
 
-    const handleDrawOffered = (d: {
-      from: string;
-      to: string;
-      message: string;
-    }) => {
-      console.log("[v0] Context: Draw offered from:", d.from);
+    const handleDrawOffered = (d: any) => {
+      console.log("[v0] Context: Draw offered from:", d);
 
-      const offererUserId = d.from === "white" ? players.white : players.black;
+      // normalize payload: some events may use `fromPlayerId`, others `from`
+      const fromPlayerId: string | null = d?.fromPlayerId ?? d?.from ?? null;
+      const offererUserId =
+        fromPlayerId === "white" ? players.white : players.black;
 
       addLog(`Draw offer from opponent`, "#66aaff");
       setDrawOffer({
@@ -471,12 +548,8 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       setDrawResponse(null);
     };
 
-    const handleDrawAccepted = (d: {
-      from: string;
-      to: string;
-      message: string;
-    }) => {
-      console.log("[v0] Context: Draw accepted from:", d.from);
+    const handleDrawAccepted = (d: any) => {
+      console.log("[v0] Context: Draw accepted from:", d);
       addLog(`Draw offer accepted! Game drawn.`, "#00ff88");
       setDrawOffer({
         isPending: false,
@@ -489,12 +562,8 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       setIsGameActive(false);
     };
 
-    const handleDrawRejected = (d: {
-      from: string;
-      to: string;
-      message: string;
-    }) => {
-      console.log("[v0] Context: Draw rejected from:", d.from);
+    const handleDrawRejected = (d: any) => {
+      console.log("[v0] Context: Draw rejected from:", d);
       addLog(`Draw offer rejected by opponent`, "#ff6666");
       setDrawOffer({
         isPending: false,
@@ -557,6 +626,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     gameId,
     myColor,
     players,
+    playersInfo,
     drawOffer,
     drawResponse,
 

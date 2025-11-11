@@ -19,7 +19,18 @@ export const MoveHistoryPanel: FC<MoveHistoryPanelProps> = ({
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Use rAF to avoid layout thrashing during render and prevent
+      // potential nested update loops caused by synchronous scrolling.
+      const el = scrollRef.current;
+      const id = requestAnimationFrame(() => {
+        try {
+          el.scrollTop = el.scrollHeight;
+        } catch (e) {
+          /* ignore */
+        }
+      });
+
+      return () => cancelAnimationFrame(id);
     }
   }, [moveHistory]);
 

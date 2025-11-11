@@ -14,10 +14,6 @@ const page = async () => {
     <ChessGameProvider token={token}>
       <ChessApp />
     </ChessGameProvider>
-
-    // <div>
-    //   <MultiplayerChess token={token!} />
-    // </div>
   );
 };
 

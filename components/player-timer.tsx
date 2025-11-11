@@ -1,12 +1,14 @@
 "use client";
 
 import type { FC } from "react";
+import type { Player } from "@/types/player";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock } from "lucide-react";
 import { formatTime } from "@/lib/chess-utils";
 
 interface PlayerTimerProps {
-  playerName: string | null;
+  // Accept either a Player object (when available) or a player id string, or null
+  player: Player | string | null;
   time: number; // in ms
   isCurrentTurn: boolean;
   isMyInfo: boolean;
@@ -18,12 +20,24 @@ interface PlayerTimerProps {
  * Highlights current turn and warns when time is low
  */
 export const PlayerTimer: FC<PlayerTimerProps> = ({
-  playerName,
+  player,
   time,
   isCurrentTurn,
   isMyInfo,
   isLowTime,
 }) => {
+  const displayName = (() => {
+    if (!player) return "Waiting...";
+    if (typeof player === "string") return player.slice(0, 12);
+    return player.alias ?? player.name ?? player._id.slice(0, 12);
+  })();
+
+  const displayRating =
+    player &&
+    typeof player !== "string" &&
+    (player.rating ?? player.elo) !== undefined
+      ? String(player.rating ?? player.elo)
+      : null;
   return (
     <Card
       className={`transition-all duration-300 ${
@@ -39,8 +53,13 @@ export const PlayerTimer: FC<PlayerTimerProps> = ({
               isMyInfo ? "text-indigo-400" : "text-white"
             }`}
           >
-            {playerName ? playerName.slice(0, 12) : "Waiting..."}
+            {displayName}
             {isMyInfo && " (You)"}
+            {displayRating && (
+              <span className="text-sm text-gray-300 ml-2">
+                {displayRating}
+              </span>
+            )}
           </span>
           <div
             className={`flex items-center gap-2 font-mono text-lg font-bold p-2 rounded ${

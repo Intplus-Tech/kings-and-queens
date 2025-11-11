@@ -1,5 +1,5 @@
+
 export interface Player {
-  elo: number
   _id: string
   schoolId: string
   alias: string
@@ -10,7 +10,12 @@ export interface Player {
   isCaptain: boolean
   isViceCaptain: boolean
   token: string
+  elo: number
+  rating: number
+  ratingDeviation: number
+  ratingVolatility: number
+  type: string
   createdAt: string
   updatedAt: string
-  password: string
+  // password: string
 }

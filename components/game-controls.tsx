@@ -87,7 +87,7 @@ export const GameControls: FC = () => {
                 <Button
                   variant="secondary"
                   size="sm"
-                  className=""
+                  className="bg-yellow-800 hover:bg-yellow-800 cursor-not-allowed text-white hover:text-white"
                   disabled
                   // onClick={acceptDraw}
                 >

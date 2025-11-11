@@ -24,6 +24,7 @@ export const ChessApp: FC = () => {
     authUserId,
     myColor,
     players,
+    playersInfo,
     whiteTime,
     blackTime,
     isWhiteTimeLow,
@@ -38,6 +39,14 @@ export const ChessApp: FC = () => {
   const isMyTurn =
     (myColor === "white" && currentTurn === "white") ||
     (myColor === "black" && currentTurn === "black");
+
+  // Look up resolved Player objects from cache; fall back to id if not resolved yet
+  const whitePlayer = players.white
+    ? playersInfo[players.white] ?? players.white
+    : null;
+  const blackPlayer = players.black
+    ? playersInfo[players.black] ?? players.black
+    : null;
 
   if (!isGameActive) {
     return (
@@ -56,7 +65,7 @@ export const ChessApp: FC = () => {
   // Active game view
   const whiteTimer = (
     <PlayerTimer
-      playerName={players.white}
+      player={whitePlayer}
       time={whiteTime}
       isCurrentTurn={currentTurn === "white"}
       isMyInfo={myColor === "white"}
@@ -66,7 +75,7 @@ export const ChessApp: FC = () => {
 
   const blackTimer = (
     <PlayerTimer
-      playerName={players.black}
+      player={blackPlayer}
       time={blackTime}
       isCurrentTurn={currentTurn === "black"}
       isMyInfo={myColor === "black"}
