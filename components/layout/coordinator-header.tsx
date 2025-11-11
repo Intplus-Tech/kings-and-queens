@@ -1,19 +1,35 @@
-import { Bell, User } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
+"use client";
+
+import { Bell, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
+import { logOutAction } from "@/lib/actions/auth/signin.action";
 
 interface CoordinatorHeaderProps {
   userRole?: "player" | "coordinator" | "admin" | "Dashboard";
 }
 
 export function CoordinatorHeader({ userRole }: CoordinatorHeaderProps) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logOutAction();
+    router.refresh(); // Refresh the current route
+  };
+
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4  bg-[#1F2124]">
       <div className="flex items-center justify-between w-full">
         <div>
-          <h1 className="text-2xl font-bold capitalize mb-2 mt-3">{userRole}</h1>
+          <h1 className="text-2xl font-bold capitalize mb-2 mt-3">
+            {userRole}
+          </h1>
           <p>Welcome Back joe! | Ojada English School</p>
         </div>
 
@@ -31,11 +47,13 @@ export function CoordinatorHeader({ userRole }: CoordinatorHeaderProps) {
             <DropdownMenuContent align="end">
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Sign Out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                Log Out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
     </header>
-  )
+  );
 }

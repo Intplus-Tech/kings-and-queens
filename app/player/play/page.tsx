@@ -1,7 +1,8 @@
 import React from "react";
 import { cookies } from "next/headers";
-import MultiplayerChess from "@/components/ChessEngine";
-import ChessGame from "@/components/ChessGame";
+// import MultiplayerChess from "@/components/ChessEngine";
+import { ChessGameProvider } from "@/context/chess-game-context";
+import { ChessApp } from "@/components/chess-app";
 
 const page = async () => {
   const cookieStore = await cookies();
@@ -10,11 +11,13 @@ const page = async () => {
   console.log("token:", token);
 
   return (
-    <div>
-      {/* <ChessEngine token={token} /> */}
-      <MultiplayerChess token={token} />
-      {/* <ChessGame /> */}
-    </div>
+    <ChessGameProvider token={token}>
+      <ChessApp />
+    </ChessGameProvider>
+
+    // <div>
+    //   <MultiplayerChess token={token!} />
+    // </div>
   );
 };
 

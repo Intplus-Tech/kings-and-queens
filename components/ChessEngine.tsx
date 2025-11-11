@@ -422,32 +422,7 @@ const GameSetup: FC<GameSetupProps> = ({
             className="flex-1 bg-gray-700 border-gray-600 text-white"
           />
         </div>
-        {/* --- REMOVED TIME CONTROL BLOCK ---
-        <div className="space-y-2">
-          <Label htmlFor="time-control">Time Control (for new games)</Label>
-          <Select
-            value={selectedTime.name}
-            onValueChange={(value) => {
-              const control = TIME_CONTROLS.find((tc) => tc.name === value);
-              if (control) setSelectedTime(control);
-            }}
-          >
-            <SelectTrigger
-              id="time-control"
-              className="bg-gray-700 border-gray-600 text-white"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-700 text-white">
-              {TIME_CONTROLS.map((tc) => (
-                <SelectItem key={tc.name} value={tc.name}>
-                  {tc.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        --- END REMOVED BLOCK --- */}
+        {/* --- REMOVED TIME CONTROL BLOCK --- */}
         <Button
           onClick={handleJoin}
           disabled={!gameId.trim() || disabled}
@@ -943,6 +918,30 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
     (myColor === "white" && turn === "w") ||
     (myColor === "black" && turn === "b");
 
+  // --- Define Timers based on player color ---
+  const whiteTimer = (
+    <PlayerTimer
+      playerName={players.white}
+      time={whiteTime}
+      isCurrentTurn={turn === "w"}
+      isMyInfo={myColor === "white"}
+    />
+  );
+
+  const blackTimer = (
+    <PlayerTimer
+      playerName={players.black}
+      time={blackTime}
+      isCurrentTurn={turn === "b"}
+      isMyInfo={myColor === "black"}
+    />
+  );
+
+  // If I am white, opponent (black) is top, I (white) am bottom.
+  // If I am black, opponent (white) is top, I (black) am bottom.
+  const topTimer = myColor === "white" ? blackTimer : whiteTimer;
+  const bottomTimer = myColor === "white" ? whiteTimer : blackTimer;
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4 font-sans">
       <div className="w-full max-w-6xl">
@@ -952,12 +951,8 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
           {/* --- Left Column: Board & Timers --- */}
           <div className="flex flex-col space-y-4">
-            <PlayerTimer
-              playerName={players.black}
-              time={blackTime}
-              isCurrentTurn={turn === "b"}
-              isMyInfo={myColor === "black"}
-            />
+            {/* --- Render Top Timer (Opponent) --- */}
+            {topTimer}
 
             <Chessboard
               position={fen}
@@ -972,12 +967,8 @@ const MultiplayerChess: FC<{ token?: string }> = ({ token }) => {
               }}
             />
 
-            <PlayerTimer
-              playerName={players.white}
-              time={whiteTime}
-              isCurrentTurn={turn === "w"}
-              isMyInfo={myColor === "white"}
-            />
+            {/* --- Render Bottom Timer (Me) --- */}
+            {bottomTimer}
           </div>
 
           {/* --- Right Column: Info, History, Logs --- */}

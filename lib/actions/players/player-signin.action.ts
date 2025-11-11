@@ -18,6 +18,12 @@ interface PlayerSignInResponse {
       phoneNumber: string
       isCaptain: boolean
       isViceCaptain: boolean
+      token: string
+      elo: number
+      rating: number
+      ratingDeviation: number
+      ratingVolatility: number
+      type: string
       createdAt: string
       updatedAt: string
       password: string
@@ -30,6 +36,17 @@ export async function playerSignInAction(values: {
   alias: string
   password: string
 }) {
+
+  // console.log("Player Sign-In Action Invoked", values);
+
+  // // normalize alias to lowercase and trim before sending
+  // if (typeof values.alias === "string") {
+  //   values.alias = values.alias.trim().toLowerCase()
+  // }
+
+
+  // console.log(values);
+
   try {
     const response = await fetch(`${process.env.BASE_URL}/auth/player/login`, {
       method: "POST",

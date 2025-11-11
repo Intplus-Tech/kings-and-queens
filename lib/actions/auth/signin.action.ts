@@ -3,6 +3,7 @@
 import type { SignInForm } from "@/lib/validations"
 import { cookies } from "next/headers"
 import type { AuthResponse } from "@/types/auth"
+import { redirect } from "next/navigation"
 
 export async function logInAction(values: SignInForm) {
   try {
@@ -69,4 +70,14 @@ export async function logInAction(values: SignInForm) {
     })
     return { error: "An unexpected error occurred. Please try again later." }
   }
+}
+
+
+export async function logOutAction() {
+  // Remove the auth token cookie
+  const cookieStore = await cookies()
+  cookieStore.delete('k_n_q_auth_token')
+
+  // Redirect to the home page or login page
+  redirect('/sign-in')
 }
