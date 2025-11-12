@@ -41,10 +41,11 @@ export const ChessApp: FC = () => {
     (myColor === "black" && currentTurn === "black");
 
   // Look up resolved Player objects from cache; fall back to id if not resolved yet
-  const whitePlayer = players.white
+  // Add defensive checks for undefined players object
+  const whitePlayer = players?.white
     ? playersInfo[players.white] ?? players.white
     : null;
-  const blackPlayer = players.black
+  const blackPlayer = players?.black
     ? playersInfo[players.black] ?? players.black
     : null;
 

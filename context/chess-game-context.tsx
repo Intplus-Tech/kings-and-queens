@@ -401,6 +401,9 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       addLog("Disconnected", "red");
       setGameResult("Connection lost. Please refresh.");
       setIsGameActive(false);
+      // Reset game state on disconnect to prevent stale data
+      setPlayers({ white: null, black: null });
+      setMyColor(null);
     };
 
     const handleError = (error: any) => {
@@ -605,6 +608,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       }
     }
   }, [chessGame.fen, myColor, chessGame, addLog]);
+
+  // Resolve player info whenever players state updates
+  React.useEffect(() => {
+    if (players?.white || players?.black) {
+      void resolveAndCachePlayers(players);
+    }
+  }, [players, resolveAndCachePlayers]);
 
   // Persist gameId
   React.useEffect(() => {
