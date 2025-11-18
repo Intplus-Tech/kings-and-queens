@@ -17,3 +17,5 @@ export interface SchoolData {
   createdAt: string;
   updatedAt: string;
 }
+
+// No changes needed. Implementation is correct.

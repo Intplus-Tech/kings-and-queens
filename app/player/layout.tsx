@@ -1,17 +1,17 @@
-import type React from "react"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
-import { AdminSidebar } from "@/components/layout/admin-sidebar"
-import { AdminHeader } from "@/components/layout/admin-header"
+import type React from "react";
+import { getPlayerProfileWithSchool } from "@/lib/actions/user/user.action";
+import { PlayerHeader } from "@/components/layout/player-header";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
+  const user = await getPlayerProfileWithSchool();
   return (
-    <div>
-      <AdminHeader userRole="admin" />
+    <div className="container mx-auto">
+      <PlayerHeader user={user} />
       <main className="flex-1 p-6">{children}</main>
     </div>
-  )
+  );
 }

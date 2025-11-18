@@ -54,7 +54,7 @@ export function AdminHeader({ userRole }: AdminHeaderProps) {
         <div>
           <h1 className="font-bold text-2xl">Kings & Queens</h1>
           <p className="text-muted-foreground text-sm">
-            Wesley College, Ibadan
+            Wesley College, Ibadansanans
           </p>
         </div>
       </div>
