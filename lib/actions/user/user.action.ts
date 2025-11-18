@@ -128,6 +128,57 @@ export async function getPlayer(): Promise<GetPlayerResponse> {
   }
 }
 
+export async function getPlayerByIdAction(playerId: string): Promise<GetPlayerResponse> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get("k_n_q_admin_token")?.value
+
+    if (!token) {
+      return {
+        success: false,
+        status: 401,
+        message: "Unauthorized: No token found",
+        error: "No authentication token found",
+      }
+    }
+
+    const response = await fetch(`${process.env.BASE_URL}/players/${playerId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    })
+
+    console.log("getPlayerByIdAction response status:", response.status);
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      return {
+        success: false,
+        status: response.status,
+        message: result.message || "Failed to fetch player data.",
+        error: result.error || result.message,
+      }
+    }
+
+    return {
+      success: true,
+      status: result.status || response.status,
+      message: result.message || "Player data fetched successfully.",
+      data: result.data || null,
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+    return {
+      success: false,
+      status: 500,
+      message: "An unexpected error occurred. Please try again later.",
+      error: errorMessage,
+    }
+  }
+}
+
 
 export async function getSchoolById(schoolId: string): Promise<GetSchoolInfoResponse> {
   try {

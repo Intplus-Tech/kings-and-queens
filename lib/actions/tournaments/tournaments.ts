@@ -74,6 +74,7 @@ export async function getTournamentsAction(): Promise<{ tournaments: Tournament[
 }
 
 
+
 interface TournamentJoinResponse {
   success: boolean
   status: number
@@ -247,5 +248,78 @@ export async function getTournamentAction(
       message: "An unexpected error occurred. Please try again later.",
       error: errorMessage,
     };
+  }
+}
+
+/**
+ * Fetch only tournaments with active status.
+ */
+export async function getActiveTournamentsAction(): Promise<{ tournaments: Tournament[]; success: boolean; status: number; message: string; error?: string }> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get("k_n_q_auth_token")?.value
+
+    if (!token) {
+      return {
+        tournaments: [],
+        success: false,
+        status: 401,
+        message: "Unauthorized: No token found",
+      }
+    }
+
+    const response = await fetch(`${process.env.BASE_URL}/tournaments/`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    })
+
+    console.log('Fetch response status:', response.status);
+
+    // Safely parse JSON (handle empty body)
+    let result: any = undefined
+    try {
+      result = await response.json()
+    } catch {
+      result = undefined
+    }
+
+    if (!response.ok || (result && result.success === false)) {
+      return {
+        tournaments: [],
+        success: false,
+        status: response.status,
+        message: result?.message || "Failed to fetch tournaments.",
+        error: result?.error || result?.message,
+      }
+    }
+
+    // Normalize to array
+    let tournaments: Tournament[] = []
+    if (Array.isArray(result?.data)) {
+      tournaments = result.data
+    } else if (result?.data) {
+      tournaments = [result.data]
+    }
+
+    // Filter for active tournaments only
+    const activeTournaments = tournaments.filter((tournament) => tournament.status === "active")
+
+    return {
+      tournaments: activeTournaments,
+      success: true,
+      status: response.status,
+      message: `${activeTournaments.length} active tournament(s) retrieved successfully.`,
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+    return {
+      tournaments: [],
+      success: false,
+      status: 500,
+      message: "An unexpected error occurred. Please try again later.",
+      error: errorMessage,
+    }
   }
 }
