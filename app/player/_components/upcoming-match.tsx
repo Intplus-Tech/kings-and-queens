@@ -12,14 +12,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Schedule, Match } from "@/types/schedule";
 import type { PlayerData } from "@/types/user";
-import { fetchPlayerSchedules } from "@/lib/actions/schedules";
 
 interface UpcomingMatchProps {
   currentUserId: string;
   currentUserName: string;
+  schedules: Schedule[];
+  allMatches: Match[];
   authToken?: string;
 }
 
@@ -44,10 +45,12 @@ interface MatchWithGame extends Match {
 export function UpcomingMatch({
   currentUserId,
   currentUserName,
+  schedules: initialSchedules = [],
+  allMatches: initialMatches = [],
 }: UpcomingMatchProps) {
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [allMatches, setAllMatches] = useState<MatchWithGame[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [schedules, setSchedules] = useState<Schedule[]>(initialSchedules);
+  const [allMatches, setAllMatches] = useState<MatchWithGame[]>(initialMatches);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Find the closest upcoming match from all matches
@@ -94,33 +97,6 @@ export function UpcomingMatch({
   };
 
   const upcomingGame = getUpcomingMatch();
-
-  useEffect(() => {
-    const loadSchedules = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const data = await fetchPlayerSchedules();
-
-        setSchedules(data.schedules);
-        setAllMatches(data.allMatches);
-      } catch (err) {
-        console.error("Failed to load schedules:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load schedules"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSchedules();
-  }, []);
-
-  if (loading) {
-    return <div className="text-center text-gray-400">Loading matches...</div>;
-  }
 
   if (error) {
     return (

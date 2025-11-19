@@ -54,6 +54,8 @@ export default async function PlayerDashboard() {
         <UpcomingMatch
           currentUserId={player._id}
           currentUserName={player.name || player.alias || "Player"}
+          schedules={schedulesData.schedules}
+          allMatches={schedulesData.allMatches}
         />
         <ChessBoardViewer opponentName="Amina" />
       </div>
