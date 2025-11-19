@@ -31,10 +31,8 @@ interface GetSchoolInfoResponse {
 
 export async function getUser(): Promise<GetUserResponse> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('k_n_q_auth_token')?.value;
-    console.log("Token:", token);
-
+    const cookieStore = await cookies()
+    const token = cookieStore.get('k_n_q_auth_token')?.value
 
     if (!token) {
       return {
@@ -50,12 +48,10 @@ export async function getUser(): Promise<GetUserResponse> {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
-    });
+      next: { revalidate: 3600 },
+    })
 
-    console.log("getUser response status:", response.status);
-
-
-    const result = await response.json();
+    const result = await response.json()
 
     if (!response.ok || !result.success) {
       return {
@@ -235,11 +231,10 @@ export async function getPlayerProfileWithSchool(): Promise<GetPlayerResponse & 
 
     const player = Array.isArray(userResponse.data) ? userResponse.data[0] : userResponse.data;
 
-    let schoolId = player.schoolId;
+    let schoolId = player.schoolId
 
     if (!schoolId && player.school) {
-      schoolId = player.school._id;
-      console.log("schoolId found in nested school object:", schoolId);
+      schoolId = player.school._id
     }
 
     let schoolData: SchoolData | undefined = undefined;

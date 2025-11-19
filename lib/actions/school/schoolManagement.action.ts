@@ -42,12 +42,13 @@ export async function getSchoolInfo(): Promise<GetSchoolInfoResponse> {
 
     // Fetch school information using the schoolId
     const response = await fetch(`${process.env.BASE_URL}/schools/${schoolId}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
       },
-    });
+      next: { revalidate: 3600 },
+    })
 
     const result = await response.json();
 

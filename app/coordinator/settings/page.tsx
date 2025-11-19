@@ -1,41 +1,48 @@
-import { notFound } from "next/navigation"
-import { getUser } from "@/lib/actions/user/user.action"
-import { getSchoolInfo } from "@/lib/actions/school/schoolManagement.action"
-import SettingsPage from "../components/SettingsPage"
+import { notFound } from "next/navigation";
+import { getUser } from "@/lib/actions/user/user.action";
+import { getSchoolInfo } from "@/lib/actions/school/schoolManagement.action";
+import SettingsPage from "../components/SettingsPage";
 
 interface SettingsPageProps {
-  searchParams: { tab?: string }
+  searchParams: { tab?: string };
 }
 
 export default async function Settings({ searchParams }: SettingsPageProps) {
-  const params = await searchParams
-  const activeTab = params.tab || "school-information"
-  const validTabs = ["school-information", "coordinator-information", "update-password"]
+  const params = await searchParams;
+  const activeTab = params.tab || "school-information";
+  const validTabs = [
+    "school-information",
+    "coordinator-information",
+    "update-password",
+  ];
 
   if (!validTabs.includes(activeTab)) {
-    notFound()
+    notFound();
   }
 
-  // Fetch user data server-side
-  const response = await getUser()
-  const schoolResponse = await getSchoolInfo()
+  const response = await getUser();
+  const schoolResponse = await getSchoolInfo();
 
   if (!response.success) {
-    notFound()
+    notFound();
   }
 
-  const userData = response.data
-  const schoolData = schoolResponse.data
+  const userData = response.data;
+  const schoolData = schoolResponse.data;
 
   if (!userData) {
-    notFound()
+    notFound();
   }
 
   if (!schoolData) {
-    notFound()
+    notFound();
   }
 
-  console.log("School Data:", schoolData)
-
-  return <SettingsPage activeTab={activeTab} userData={userData} schoolData={schoolData} />
+  return (
+    <SettingsPage
+      activeTab={activeTab}
+      userData={userData}
+      schoolData={schoolData}
+    />
+  );
 }

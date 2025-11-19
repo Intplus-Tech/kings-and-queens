@@ -1,4 +1,13 @@
-import { Crown, Home, Users, Calendar, BarChart3, Settings } from "lucide-react"
+"use client";
+
+import {
+  Home,
+  Users,
+  Calendar,
+  BarChart3,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -10,82 +19,148 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { logOutAction } from "@/lib/actions/auth/signin.action";
 
-export function CoordinatorSidebar() {
+interface CoordinatorSidebarProps {
+  schoolName?: string;
+}
+
+export function CoordinatorSidebar({
+  schoolName = "Your School",
+}: CoordinatorSidebarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logOutAction();
+    router.refresh();
+  };
+  const menuItems = [
+    {
+      title: "Dashboard",
+      href: "/coordinator",
+      icon: Home,
+      tooltip: "View dashboard overview",
+    },
+    {
+      title: "Team Management",
+      href: "/coordinator/teams",
+      icon: Users,
+      tooltip: "Manage teams and members",
+    },
+    {
+      title: "Tournaments",
+      href: "/coordinator/tournaments",
+      icon: Calendar,
+      tooltip: "Manage tournaments",
+    },
+    {
+      title: "Reports",
+      href: "/coordinator/reports",
+      icon: BarChart3,
+      tooltip: "View analytics and reports",
+    },
+    {
+      title: "Settings",
+      href: "/coordinator/settings",
+      icon: Settings,
+      tooltip: "Configure settings",
+    },
+  ];
+
   return (
-    <Sidebar collapsible="icon" className="border-r">
-      <SidebarHeader className="border-b p-6">
+    <Sidebar collapsible="icon" className="border-r bg-background">
+      {/* Sidebar Header */}
+      <SidebarHeader className="border-b bg-background  px-4 py-6 h-20">
         <div className="flex items-center gap-3">
-          <div>
-            <h2 className="text-2xl font-bold text-primary">Kings & Queens</h2>
-            <p className="text-sm text-muted-foreground">Maryland Int’l School</p>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-600 font-bold text-slate-900 text-lg">
+            ♔
+          </div>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold text-white leading-tight">
+              Kings & Queens
+            </h2>
+            <p className="text-xs text-slate-400 truncate">{schoolName}</p>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
+      {/* Sidebar Content */}
+      <SidebarContent className="pr-10 bg-background">
+        <SidebarGroup className="gap-0">
+          <SidebarGroupLabel className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            Navigation
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem className="">
-                <SidebarMenuButton asChild tooltip="Dashboard" className="h-[60px] bg-[#010B11]">
-                  <a href="/coordinator" className="flex items-center gap-3">
-                    <Home className="h-4 w-4" />
-                    <span>Dashboard</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            <SidebarMenu className="gap-1">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/coordinator" &&
+                    pathname.startsWith(item.href));
 
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Team Management" className="h-[60px] bg-[#010B11]">
-                  <a href="/coordinator/teams" className="flex items-center gap-3">
-                    {/* <Users className="h-4 w-4" /> */}
-                    <img src="/team-icon.svg" alt="Team Icon" className="h-4 w-4" />
-                    <span>Team Management</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.tooltip}
+                      className={`mx-2 rounded-lg h-10 px-3 transition-all duration-200 group ${
+                        isActive
+                          ? "bg-yellow-400/10 text-yellow-400"
+                          : "text-slate-300 hover:text-white hover:bg-slate-800"
+                      }`}
+                    >
+                      <Link
+                        href={item.href}
+                        className="flex items-center gap-3 font-medium"
+                      >
+                        <Icon
+                          className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                            isActive
+                              ? "text-yellow-400"
+                              : "group-hover:text-yellow-400"
+                          }`}
+                        />
+                        <span className="group-data-[state=collapsed]:hidden">
+                          {item.title}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
+        {/* Logout Section */}
+        <SidebarGroup className="mt-auto gap-0 border-t ">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1">
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Tournaments" className="h-[60px] bg-[#010B11]">
-                  <a href="/coordinator/tournaments" className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4" />
-                    <span>Tournaments</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Reports" className="h-[60px] bg-[#010B11]">
-                  <a href="/coordinator/reports" className="flex items-center gap-3">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>Reports</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Settings" className="h-[60px] bg-[#010B11]">
-                  <a href="/coordinator/settings" className="flex items-center gap-3">
-                    <Settings className="h-4 w-4" />
-                    <span>Settings</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Settings" className="h-[60px]">
-                  <a href="/coordinator/settings" className="flex items-center gap-3">
-                    <Settings className="h-4 w-4 text-red-500" />
-                    <span className="text-red-500 font-bold">Logout</span>
-                  </a>
+                <SidebarMenuButton
+                  tooltip="Log out of your account"
+                  onClick={handleLogout}
+                  className="mx-2 rounded-lg h-10 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-3 font-medium w-full">
+                    <LogOut className="h-5 w-5 flex-shrink-0" />
+                    <span className="group-data-[state=collapsed]:hidden">
+                      Logout
+                    </span>
+                  </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
