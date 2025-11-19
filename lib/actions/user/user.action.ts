@@ -101,7 +101,6 @@ export async function getPlayer(): Promise<GetPlayerResponse> {
         "Authorization": `Bearer ${token}`,
       },
     });
-    console.log("getPlayer response status:", response.status);
 
     const result = await response.json();
     if (!response.ok || !result.success) {
@@ -131,7 +130,7 @@ export async function getPlayer(): Promise<GetPlayerResponse> {
 export async function getPlayerByIdAction(playerId: string): Promise<GetPlayerResponse> {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get("k_n_q_admin_token")?.value
+    const token = cookieStore.get("k_n_q_auth_token")?.value
 
     if (!token) {
       return {
@@ -149,7 +148,6 @@ export async function getPlayerByIdAction(playerId: string): Promise<GetPlayerRe
       },
     })
 
-    console.log("getPlayerByIdAction response status:", response.status);
 
     const result = await response.json()
 
@@ -198,7 +196,6 @@ export async function getSchoolById(schoolId: string): Promise<GetSchoolInfoResp
         "Authorization": `Bearer ${token}`,
       },
     });
-    console.log("getSchoolById response status:", response.status);
 
     const result = await response.json();
     if (!response.ok || !result.success) {

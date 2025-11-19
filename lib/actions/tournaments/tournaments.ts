@@ -275,7 +275,6 @@ export async function getActiveTournamentsAction(): Promise<{ tournaments: Tourn
       },
     })
 
-    console.log('Fetch response status:', response.status);
 
     // Safely parse JSON (handle empty body)
     let result: any = undefined
