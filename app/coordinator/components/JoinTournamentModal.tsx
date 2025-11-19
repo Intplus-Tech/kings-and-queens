@@ -1,99 +1,183 @@
 // components/JoinTournamentModal.tsx
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input" // optional search input
-import { getPlayersAction, getPlayersBySchoolIdAction } from "@/lib/actions/players/get-palyer.action" // server action (use server)
-import { joinTournamentAction } from "@/lib/actions/tournaments/tournaments" // server action (use server)
-import { Checkbox } from "@/components/ui/checkbox" // if available; otherwise use native checkbox
-import { useToast } from "@/hooks/use-toast"
-import { getSchoolInfo } from "@/lib/actions/school/schoolManagement.action"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, useRef } from "react";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"; // optional search input
+import {
+  getPlayersAction,
+  getPlayersBySchoolIdAction,
+} from "@/lib/actions/players/get-palyer.action"; // server action (use server)
+import { joinTournamentAction } from "@/lib/actions/tournaments/tournaments"; // server action (use server)
+import { Checkbox } from "@/components/ui/checkbox"; // if available; otherwise use native checkbox
+import { useToast } from "@/hooks/use-toast";
+import { getSchoolInfo } from "@/lib/actions/school/schoolManagement.action";
+import { useRouter } from "next/navigation";
 
 type Player = {
-  _id: string
-  name?: string
-  alias?: string
-  [k: string]: any
-}
+  _id: string;
+  name?: string;
+  alias?: string;
+  [k: string]: any;
+};
 
-export default function JoinTournamentModal({ tournamentId }: { tournamentId: string }) {
-  const [open, setOpen] = useState(false)
-  const [loadingPlayers, setLoadingPlayers] = useState(false)
-  const [players, setPlayers] = useState<Player[]>([])
-  const [selected, setSelected] = useState<Record<string, boolean>>({})
-  const [submitting, setSubmitting] = useState(false)
-  const [filter, setFilter] = useState("")
+// Client-side cache for players
+const playersCacheRef = {
+  data: null as Player[] | null,
+  schoolId: null as string | null,
+};
 
-  const { toast } = useToast()
-  const router = useRouter()
+export default function JoinTournamentModal({
+  tournamentId,
+}: {
+  tournamentId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [filter, setFilter] = useState("");
+  const hasFetched = useRef(false);
 
-  // fetch players when dialog opens
+  const { toast } = useToast();
+  const router = useRouter();
+
+  // fetch players when dialog opens (only once per session)
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
 
-    let mounted = true
+    // If we already have cached players, use them
+    if (hasFetched.current && playersCacheRef.data) {
+      setPlayers(playersCacheRef.data);
+      return;
+    }
+
+    let mounted = true;
     const fetchPlayers = async () => {
-      setLoadingPlayers(true)
+      setLoadingPlayers(true);
       try {
-        const school = await getSchoolInfo()
-        const schoolId = school?.data?._id || ""
+        const school = await getSchoolInfo();
+        const schoolId = school?.data?._id || "";
         if (!schoolId) {
           toast({
             title: "Error",
             description: "Failed to get school information",
             variant: "destructive",
-          })
-          return
+          });
+          return;
         }
-        const res = await getPlayersBySchoolIdAction(schoolId)
-        if (!mounted) return
+        const res = await getPlayersBySchoolIdAction(schoolId);
+        if (!mounted) return;
         if (res.success) {
-          setPlayers(res.players || [])
+          const playerList = res.players || [];
+          setPlayers(playerList);
+          // Cache on client side
+          playersCacheRef.data = playerList;
+          playersCacheRef.schoolId = schoolId;
+          hasFetched.current = true;
         } else {
           toast({
             title: "Error",
             description: res.error || "Failed to fetch players",
             variant: "destructive",
-          })
+          });
         }
       } catch (err: any) {
         toast({
           title: "Error",
           description: err?.error || "Failed to fetch players",
           variant: "destructive",
-        })
+        });
       } finally {
-        if (mounted) setLoadingPlayers(false)
+        if (mounted) setLoadingPlayers(false);
       }
-    }
+    };
 
-    fetchPlayers()
+    fetchPlayers();
     return () => {
-      mounted = false
-    }
-  }, [open])
+      mounted = false;
+    };
+  }, [open]);
 
   const toggleSelect = (id: string) => {
-    setSelected((s) => ({ ...s, [id]: !s[id] }))
-  }
+    setSelected((s) => ({ ...s, [id]: !s[id] }));
+  };
+
+  const revalidateCache = async () => {
+    setLoadingPlayers(true);
+    try {
+      // Clear client-side cache
+      playersCacheRef.data = null;
+      hasFetched.current = false;
+
+      const school = await getSchoolInfo();
+      const schoolId = school?.data?._id || "";
+      if (!schoolId) {
+        toast({
+          title: "Error",
+          description: "Failed to get school information",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch fresh data from server (which will also update Vercel cache)
+      const res = await getPlayersBySchoolIdAction(schoolId);
+      if (res.success) {
+        const playerList = res.players || [];
+        setPlayers(playerList);
+        // Re-cache on client side
+        playersCacheRef.data = playerList;
+        playersCacheRef.schoolId = schoolId;
+        hasFetched.current = true;
+        toast({
+          title: "Success",
+          description: "Player list refreshed successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: res.error || "Failed to refresh players",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err?.error || "Failed to refresh players",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingPlayers(false);
+    }
+  };
 
   const handleSubmit = async () => {
-    const participantIds = Object.entries(selected).filter(([, v]) => v).map(([k]) => k)
+    const participantIds = Object.entries(selected)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
     if (participantIds.length === 0) {
       toast({
         title: "Error",
         description: "Select at least one player",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
-      const res = await joinTournamentAction(tournamentId, participantIds)
+      const res = await joinTournamentAction(tournamentId, participantIds);
 
       console.log("response", res);
 
@@ -101,35 +185,34 @@ export default function JoinTournamentModal({ tournamentId }: { tournamentId: st
         toast({
           title: "Success",
           description: res.error || "Joined tournament successfully",
-        })
+        });
         // Optionally close the dialog and clear selection
-        router.refresh()
-        setOpen(false)
-        setSelected({})
-
+        router.refresh();
+        setOpen(false);
+        setSelected({});
       } else {
         toast({
           title: "Error",
           description: res.error || "Failed to join tournament",
           variant: "destructive",
-        })
+        });
       }
     } catch (err: any) {
       toast({
         title: "Error",
         description: err?.error || "Failed to join tournament",
         variant: "destructive",
-      })
+      });
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const filteredPlayers = players.filter((p) => {
-    const q = filter.trim().toLowerCase()
-    if (!q) return true
-    return (p.name || p.alias || "").toLowerCase().includes(q)
-  })
+    const q = filter.trim().toLowerCase();
+    if (!q) return true;
+    return (p.name || p.alias || "").toLowerCase().includes(q);
+  });
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -147,43 +230,79 @@ export default function JoinTournamentModal({ tournamentId }: { tournamentId: st
 
         <div className="space-y-4 mt-2">
           <div className="flex items-center gap-2">
-            <Input placeholder="Search players..." value={filter} onChange={(e) => setFilter(e.target.value)} />
-            <div className="text-sm text-muted-foreground">{loadingPlayers ? "Loading..." : `${players.length} players`}</div>
+            <Input
+              placeholder="Search players..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={revalidateCache}
+              disabled={loadingPlayers}
+              title="Refresh player list in case new players were added"
+            >
+              {loadingPlayers ? "Refreshing..." : "Refresh"}
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {loadingPlayers ? "Loading..." : `${players.length} players`}
+            </div>
           </div>
 
           <div className="max-h-56 overflow-auto divide-y rounded border p-2">
-            {loadingPlayers && <div className="p-4 text-center text-sm">Loading players...</div>}
-
-            {!loadingPlayers && filteredPlayers.length === 0 && (
-              <div className="p-4 text-center text-sm text-muted-foreground">No players found</div>
+            {loadingPlayers && (
+              <div className="p-4 text-center text-sm">Loading players...</div>
             )}
 
-            {!loadingPlayers && filteredPlayers.map((p) => (
-              <label key={p._id} className="flex items-center gap-3 p-2 hover:bg-muted rounded">
-                {/* Prefer shadcn Checkbox if available; otherwise native checkbox */}
-                {typeof Checkbox !== "undefined" ? (
-                  // if Checkbox component exists in your project
-                  <Checkbox checked={!!selected[p._id]} onCheckedChange={() => toggleSelect(p._id)} />
-                ) : (
-                  <input type="checkbox" checked={!!selected[p._id]} onChange={() => toggleSelect(p._id)} />
-                )}
+            {!loadingPlayers && filteredPlayers.length === 0 && (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No players found
+              </div>
+            )}
 
-                <div>
-                  <div className="font-medium">{p.name ?? p.alias ?? "Unknown"}</div>
-                  <div className="text-sm text-muted-foreground">{p.alias ?? p.playerClass ?? ""}</div>
-                </div>
-              </label>
-            ))}
+            {!loadingPlayers &&
+              filteredPlayers.map((p) => (
+                <label
+                  key={p._id}
+                  className="flex items-center gap-3 p-2 hover:bg-muted rounded"
+                >
+                  {/* Prefer shadcn Checkbox if available; otherwise native checkbox */}
+                  {typeof Checkbox !== "undefined" ? (
+                    // if Checkbox component exists in your project
+                    <Checkbox
+                      checked={!!selected[p._id]}
+                      onCheckedChange={() => toggleSelect(p._id)}
+                    />
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={!!selected[p._id]}
+                      onChange={() => toggleSelect(p._id)}
+                    />
+                  )}
+
+                  <div>
+                    <div className="font-medium">
+                      {p.name ?? p.alias ?? "Unknown"}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {p.alias ?? p.playerClass ?? ""}
+                    </div>
+                  </div>
+                </label>
+              ))}
           </div>
         </div>
 
         <AlertDialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting ? "Submitting..." : "Submit"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

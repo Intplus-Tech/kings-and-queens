@@ -22,6 +22,7 @@ export async function getPlayersAction(): Promise<{ players: Player[]; success: 
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 600 }, // Cache for 10 minutes
     })
 
     const result = await response.json()
@@ -82,6 +83,7 @@ export async function getPlayersBySchoolIdAction(schoolId: string): Promise<{ pl
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 600 }, // Cache for 10 minutes - players list by school
     })
 
     const result = await response.json()
@@ -141,6 +143,7 @@ export async function getPlayerByIdAction(playerId: string): Promise<{ player: P
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 3600 }, // Cache for 1 hour - individual player data
     })
 
     const result = await response.json()

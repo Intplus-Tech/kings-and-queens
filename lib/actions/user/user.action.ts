@@ -100,6 +100,7 @@ export async function getPlayer(): Promise<GetPlayerResponse> {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 3600 }, // Cache for 1 hour on Vercel
     });
 
     const result = await response.json();
@@ -146,6 +147,7 @@ export async function getPlayerByIdAction(playerId: string): Promise<GetPlayerRe
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 3600 }, // Cache for 1 hour on Vercel
     })
 
 
@@ -195,6 +197,7 @@ export async function getSchoolById(schoolId: string): Promise<GetSchoolInfoResp
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 86400 }, // Cache for 24 hours on Vercel
     });
 
     const result = await response.json();

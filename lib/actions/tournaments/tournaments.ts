@@ -1,11 +1,17 @@
 "use server"
 
-import { Tournament } from "@/types/tournamentType";
+import { Tournament } from "@/types/tournamentType"
 import { cookies } from "next/headers"
 
+interface TournamentsResponse {
+  tournaments: Tournament[]
+  success: boolean
+  status: number
+  message: string
+  error?: string
+}
 
-
-export async function getTournamentsAction(): Promise<{ tournaments: Tournament[]; success: boolean; status: number; message: string; error?: string }> {
+export async function getTournamentsAction(): Promise<TournamentsResponse> {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get("k_n_q_auth_token")?.value
@@ -24,12 +30,9 @@ export async function getTournamentsAction(): Promise<{ tournaments: Tournament[
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 300 },
     })
 
-    console.log('Fetch response status:', response.status);
-    // console.log('Fetch response headers:', response.headers);
-
-    // Safely parse JSON (handle empty body)
     let result: any = undefined
     try {
       result = await response.json()
@@ -47,7 +50,6 @@ export async function getTournamentsAction(): Promise<{ tournaments: Tournament[
       }
     }
 
-    // Normalize to array
     let tournaments: Tournament[] = []
     if (Array.isArray(result?.data)) {
       tournaments = result.data
@@ -73,8 +75,6 @@ export async function getTournamentsAction(): Promise<{ tournaments: Tournament[
   }
 }
 
-
-
 interface TournamentJoinResponse {
   success: boolean
   status: number
@@ -83,17 +83,11 @@ interface TournamentJoinResponse {
   error?: string
 }
 
-/**
- * Submit participants to join a tournament.
- * @param tournamentId - the tournament id (dynamic)
- * @param participants - array of player ids to join
- */
 export async function joinTournamentAction(
   tournamentId: string,
   participants: string[]
 ): Promise<TournamentJoinResponse> {
   try {
-    // basic validation
     if (!Array.isArray(participants) || participants.length === 0) {
       return {
         success: false,
@@ -123,7 +117,6 @@ export async function joinTournamentAction(
       body: JSON.stringify({ participants }),
     })
 
-    // Safely parse JSON if present
     let result: any = undefined
     try {
       result = await response.json()
@@ -156,36 +149,29 @@ export async function joinTournamentAction(
   }
 }
 
-
-
 export interface GetTournamentResponse {
-  tournament?: Tournament | null;
-  success: boolean;
-  status: number;
-  message: string;
-  error?: string;
+  tournament?: Tournament | null
+  success: boolean
+  status: number
+  message: string
+  error?: string
 }
 
-/**
- * Fetch a single tournament by id.
- * @param tournamentId - the tournament id (dynamic)
- */
 export async function getTournamentAction(
   tournamentId: string
 ): Promise<GetTournamentResponse> {
   try {
-    // Basic validation
     if (!tournamentId || typeof tournamentId !== "string") {
       return {
         tournament: null,
         success: false,
         status: 400,
         message: "Invalid request: tournamentId is required",
-      };
+      }
     }
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get("k_n_q_auth_token")?.value;
+    const cookieStore = await cookies()
+    const token = cookieStore.get("k_n_q_auth_token")?.value
 
     if (!token) {
       return {
@@ -194,7 +180,7 @@ export async function getTournamentAction(
         status: 401,
         message: "Unauthorized: No token found",
         error: "No authentication token found",
-      };
+      }
     }
 
     const response = await fetch(
@@ -204,15 +190,15 @@ export async function getTournamentAction(
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        next: { revalidate: 60 },
       }
-    );
+    )
 
-    // Safely parse JSON (handle empty body)
-    let result: any = undefined;
+    let result: any = undefined
     try {
-      result = await response.json();
+      result = await response.json()
     } catch {
-      result = undefined;
+      result = undefined
     }
 
     if (!response.ok || (result && result.success === false)) {
@@ -222,15 +208,14 @@ export async function getTournamentAction(
         status: response.status,
         message: result?.message || "Failed to fetch tournament.",
         error: result?.error || result?.message,
-      };
+      }
     }
 
-    // Normalize result.data to single tournament
-    let tournament: Tournament | null = null;
+    let tournament: Tournament | null = null
     if (Array.isArray(result?.data) && result.data.length > 0) {
-      tournament = result.data[0];
+      tournament = result.data[0]
     } else if (result?.data) {
-      tournament = result.data as Tournament;
+      tournament = result.data as Tournament
     }
 
     return {
@@ -238,23 +223,28 @@ export async function getTournamentAction(
       success: true,
       status: response.status,
       message: result?.message || "Tournament retrieved successfully.",
-    };
+    }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
     return {
       tournament: null,
       success: false,
       status: 500,
       message: "An unexpected error occurred. Please try again later.",
       error: errorMessage,
-    };
+    }
   }
 }
 
-/**
- * Fetch only tournaments with active status.
- */
-export async function getActiveTournamentsAction(): Promise<{ tournaments: Tournament[]; success: boolean; status: number; message: string; error?: string }> {
+interface ActiveTournamentsResponse {
+  tournaments: Tournament[]
+  success: boolean
+  status: number
+  message: string
+  error?: string
+}
+
+export async function getActiveTournamentsAction(): Promise<ActiveTournamentsResponse> {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get("k_n_q_auth_token")?.value
@@ -273,10 +263,9 @@ export async function getActiveTournamentsAction(): Promise<{ tournaments: Tourn
       headers: {
         "Authorization": `Bearer ${token}`,
       },
+      next: { revalidate: 300 },
     })
 
-
-    // Safely parse JSON (handle empty body)
     let result: any = undefined
     try {
       result = await response.json()
@@ -294,7 +283,6 @@ export async function getActiveTournamentsAction(): Promise<{ tournaments: Tourn
       }
     }
 
-    // Normalize to array
     let tournaments: Tournament[] = []
     if (Array.isArray(result?.data)) {
       tournaments = result.data
@@ -302,7 +290,6 @@ export async function getActiveTournamentsAction(): Promise<{ tournaments: Tourn
       tournaments = [result.data]
     }
 
-    // Filter for active tournaments only
     const activeTournaments = tournaments.filter((tournament) => tournament.status === "active")
 
     return {

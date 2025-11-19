@@ -1,4 +1,3 @@
-// app/tournaments/[id]/page.tsx
 import Link from "next/link";
 import React from "react";
 import {
@@ -18,7 +17,7 @@ type PageProps = {
   params: { id: string };
 };
 
-const page = async ({ params }: PageProps) => {
+export default async function TournamentPage({ params }: PageProps) {
   const { id } = await params;
   const res = await getTournamentAction(id);
 
@@ -41,10 +40,6 @@ const page = async ({ params }: PageProps) => {
   }
 
   const t = res.tournament;
-
-  // Normalize and resolve participant data:
-  // - If participant is a string id -> fetch via server action getPlayerByIdAction
-  // - If participant is already an object -> use as-is
   const rawParticipants = Array.isArray(t.participants) ? t.participants : [];
 
   const resolvedParticipants = await Promise.all(
@@ -53,15 +48,11 @@ const page = async ({ params }: PageProps) => {
         if (!p) return null;
         if (typeof p === "string") {
           const r = await getPlayerByIdAction(p);
-
-          console.log("Resolved player for id:", p, r);
           return r.success && r.player
             ? r.player
             : { _id: p, name: "Unknown", alias: "" };
         }
-        // object shape (already populated)
         if (typeof p === "object") {
-          // normalize id field
           const id = p._id ?? p.id ?? null;
           return {
             _id: id,
@@ -77,7 +68,6 @@ const page = async ({ params }: PageProps) => {
   );
 
   const participants = resolvedParticipants.filter(Boolean) as any[];
-  console.log("Resolved participants:", participants);
   const participantCount = participants.length;
 
   return (
@@ -131,7 +121,6 @@ const page = async ({ params }: PageProps) => {
         </CardContent>
 
         <CardFooter className="flex items-center justify-between">
-          {/* JOIN MODAL - Client component (only show if tournament is active) */}
           {t.status === "active" && (
             <JoinTournamentModal tournamentId={t._id} />
           )}
@@ -173,6 +162,4 @@ const page = async ({ params }: PageProps) => {
       )}
     </div>
   );
-};
-
-export default page;
+}
