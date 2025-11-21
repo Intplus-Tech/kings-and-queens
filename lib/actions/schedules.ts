@@ -83,109 +83,117 @@ export async function fetchPlayerSchedules() {
     // Fetch all player data at once
     const playerDataMap = new Map<string, PlayerData>();
     if (playerIds.size > 0) {
-      for (const playerId of playerIds) {
+      const playerPromises = Array.from(playerIds).map(async (playerId) => {
         try {
           const playerRes = await getPlayerByIdAction(playerId);
           if (playerRes.success && playerRes.data) {
-            playerDataMap.set(playerId, playerRes.data);
+            return { id: playerId, data: playerRes.data };
           }
         } catch (e) {
           console.error(`Failed to fetch player ${playerId}:`, e);
         }
-      }
+        return null;
+      });
+
+      const players = await Promise.all(playerPromises);
+      players.forEach((p) => {
+        if (p) playerDataMap.set(p.id, p.data);
+      });
     }
 
     // Fetch game data for all matches
-    const schedulesWithGames: ScheduleWithGames[] = [];
+    const now = new Date();
+
+    const schedulesWithGames = await Promise.all(
+      schedules.map(async (schedule) => {
+        const matchesWithGames = await Promise.all(
+          schedule.matches.map(async (match) => {
+            try {
+              const gameResponse = await fetch(
+                `${process.env.BASE_URL}/games/${match.gameId}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
+
+              let gameData: GameData | undefined;
+
+              if (gameResponse.ok) {
+                const gameJson = await gameResponse.json();
+                gameData = gameJson.data;
+              }
+
+              // Get player data from pre-fetched map
+              const player1Data = playerDataMap.get(match.player1);
+              const player2Data = playerDataMap.get(match.player2);
+
+              return {
+                ...match,
+                gameData,
+                startTime: gameData?.startTime,
+                player1Data,
+                player2Data,
+              } as MatchWithGameData;
+            } catch (error) {
+              console.error(
+                `Failed to fetch game data for ${match.gameId}:`,
+                error
+              );
+              // Continue with match data even if game fetch fails
+              const player1Data = playerDataMap.get(match.player1);
+              const player2Data = playerDataMap.get(match.player2);
+
+              return {
+                ...match,
+                gameData: undefined,
+                startTime: undefined,
+                player1Data,
+                player2Data,
+              } as MatchWithGameData;
+            }
+          })
+        );
+
+        return {
+          ...schedule,
+          matches: matchesWithGames,
+        };
+      })
+    );
+
+    // Flatten all matches and find upcoming match
+    const allMatches: MatchWithGameData[] = [];
     let nextUpcoming: {
       match: MatchWithGameData;
       tournament: string;
       round: number;
     } | null = null;
-    let allMatches: MatchWithGameData[] = [];
-    const now = new Date();
 
-    for (const schedule of schedules) {
-      const matchesWithGames: MatchWithGameData[] = [];
-
+    for (const schedule of schedulesWithGames) {
       for (const match of schedule.matches) {
-        try {
-          const gameResponse = await fetch(
-            `${process.env.BASE_URL}/games/${match.gameId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
+        allMatches.push(match);
 
-          let gameData: GameData | undefined;
-
-          if (gameResponse.ok) {
-            const gameJson = await gameResponse.json();
-            gameData = gameJson.data;
-          }
-
-          // Get player data from pre-fetched map
-          const player1Data = playerDataMap.get(match.player1);
-          const player2Data = playerDataMap.get(match.player2);
-
-          const matchWithGame: MatchWithGameData = {
-            ...match,
-            gameData,
-            startTime: gameData?.startTime,
-            player1Data,
-            player2Data,
-          };
-
-          matchesWithGames.push(matchWithGame);
-          allMatches.push(matchWithGame);
-
-          // Determine if this is the next upcoming game
-          if (gameData?.startTime) {
-            const gameTime = new Date(gameData.startTime);
-            // Find games that haven't started yet, closest to now
-            if (gameTime > now) {
-              if (
-                !nextUpcoming ||
-                gameTime < new Date(nextUpcoming.match.gameData?.startTime || 0)
-              ) {
-                nextUpcoming = {
-                  match: matchWithGame,
-                  tournament: schedule.tournament.name,
-                  round: schedule.round,
-                };
-              }
+        // Determine if this is the next upcoming game
+        if (match.gameData?.startTime) {
+          const gameTime = new Date(match.gameData.startTime);
+          // Find games that haven't started yet, closest to now
+          if (gameTime > now) {
+            if (
+              !nextUpcoming ||
+              gameTime < new Date(nextUpcoming.match.gameData?.startTime || 0)
+            ) {
+              nextUpcoming = {
+                match,
+                tournament: schedule.tournament.name,
+                round: schedule.round,
+              };
             }
           }
-        } catch (error) {
-          console.error(`Failed to fetch game data for ${match.gameId}:`, error);
-          // Continue with match data even if game fetch fails
-          const player1Data = playerDataMap.get(match.player1);
-          const player2Data = playerDataMap.get(match.player2);
-
-          matchesWithGames.push({
-            ...match,
-            gameData: undefined,
-            startTime: undefined,
-            player1Data,
-            player2Data,
-          });
-          allMatches.push({
-            ...match,
-            gameData: undefined,
-            startTime: undefined,
-            player1Data,
-            player2Data,
-          });
         }
       }
-
-      schedulesWithGames.push({
-        ...schedule,
-        matches: matchesWithGames,
-      });
     }
 
     return {
@@ -243,60 +251,66 @@ export async function fetchScheduleById(scheduleId: string) {
     const playerDataMap = new Map<string, PlayerData>();
     if (playerIds.size > 0) {
       console.log(`Fetching ${playerIds.size} player(s)`);
-      for (const playerId of playerIds) {
+      const playerPromises = Array.from(playerIds).map(async (playerId) => {
         try {
           const playerRes = await getPlayerByIdAction(playerId);
           if (playerRes.success && playerRes.data) {
-            playerDataMap.set(playerId, playerRes.data);
+            return { id: playerId, data: playerRes.data };
           }
         } catch (e) {
           console.error(`Failed to fetch player ${playerId}:`, e);
         }
-      }
+        return null;
+      });
+
+      const players = await Promise.all(playerPromises);
+      players.forEach((p) => {
+        if (p) playerDataMap.set(p.id, p.data);
+      });
     }
 
     // Fetch game data for all matches
-    const matchesWithGames: MatchWithGameData[] = [];
+    const matchesWithGames = await Promise.all(
+      schedule.matches.map(async (match) => {
+        try {
+          const gameResponse = await fetch(
+            `${process.env.BASE_URL}/games/${match.gameId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
-    for (const match of schedule.matches) {
-      try {
-        const gameResponse = await fetch(
-          `${process.env.BASE_URL}/games/${match.gameId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
+          let gameData: GameData | undefined;
+
+          if (gameResponse.ok) {
+            const gameJson = await gameResponse.json();
+            gameData = gameJson.data;
           }
-        );
 
-        let gameData: GameData | undefined;
+          // Get player data from pre-fetched map
+          const player1Data = playerDataMap.get(match.player1);
+          const player2Data = playerDataMap.get(match.player2);
 
-        if (gameResponse.ok) {
-          const gameJson = await gameResponse.json();
-          gameData = gameJson.data;
+          return {
+            ...match,
+            gameData,
+            startTime: gameData?.startTime,
+            player1Data,
+            player2Data,
+          } as MatchWithGameData;
+        } catch (error) {
+          console.error(`Failed to fetch game for match ${match._id}:`, error);
+          return {
+            ...match,
+            gameData: undefined,
+            startTime: undefined,
+          } as MatchWithGameData;
         }
-
-        // Get player data from pre-fetched map
-        const player1Data = playerDataMap.get(match.player1);
-        const player2Data = playerDataMap.get(match.player2);
-
-        matchesWithGames.push({
-          ...match,
-          gameData,
-          startTime: gameData?.startTime,
-          player1Data,
-          player2Data,
-        });
-      } catch (error) {
-        console.error(`Failed to fetch game for match ${match._id}:`, error);
-        matchesWithGames.push({
-          ...match,
-          gameData: undefined,
-          startTime: undefined,
-        });
-      }
-    }
+      })
+    );
 
     return {
       ...schedule,

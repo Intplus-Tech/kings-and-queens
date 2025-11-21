@@ -1,9 +1,16 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Play, Pause, SkipBack, SkipForward, Maximize2, Settings } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Maximize2,
+  Settings,
+} from "lucide-react";
 
 interface ChessBoardViewerProps {
-  opponentName: string
+  opponentName: string;
 }
 
 export function ChessBoardViewer({ opponentName }: ChessBoardViewerProps) {
@@ -20,36 +27,37 @@ export function ChessBoardViewer({ opponentName }: ChessBoardViewerProps) {
           <div className="bg-amber-100 p-4 rounded-lg mb-4 aspect-square max-w-md mx-auto">
             <div className="grid grid-cols-8 grid-rows-8 h-full w-full">
               {Array.from({ length: 64 }).map((_, i) => {
-                const row = Math.floor(i / 8)
-                const col = i % 8
-                const isLight = (row + col) % 2 === 0
+                const row = Math.floor(i / 8);
+                const col = i % 8;
+                const isLight = (row + col) % 2 === 0;
                 return (
                   <div
                     key={i}
-                    className={`${isLight ? 'bg-amber-100' : 'bg-amber-800'
-                      } flex items-center justify-center text-2xl`}
+                    className={`${
+                      isLight ? "bg-amber-100" : "bg-amber-800"
+                    } flex items-center justify-center text-2xl`}
                   >
                     {/* Chess pieces would go here */}
-                    {i === 0 && '♜'}
-                    {i === 1 && '♞'}
-                    {i === 2 && '♝'}
-                    {i === 3 && '♛'}
-                    {i === 4 && '♚'}
-                    {i === 5 && '♝'}
-                    {i === 6 && '♞'}
-                    {i === 7 && '♜'}
-                    {i >= 8 && i <= 15 && '♟'}
-                    {i >= 48 && i <= 55 && '♙'}
-                    {i === 56 && '♖'}
-                    {i === 57 && '♘'}
-                    {i === 58 && '♗'}
-                    {i === 59 && '♕'}
-                    {i === 60 && '♔'}
-                    {i === 61 && '♗'}
-                    {i === 62 && '♘'}
-                    {i === 63 && '♖'}
+                    {i === 0 && "♜"}
+                    {i === 1 && "♞"}
+                    {i === 2 && "♝"}
+                    {i === 3 && "♛"}
+                    {i === 4 && "♚"}
+                    {i === 5 && "♝"}
+                    {i === 6 && "♞"}
+                    {i === 7 && "♜"}
+                    {i >= 8 && i <= 15 && "♟"}
+                    {i >= 48 && i <= 55 && "♙"}
+                    {i === 56 && "♖"}
+                    {i === 57 && "♘"}
+                    {i === 58 && "♗"}
+                    {i === 59 && "♕"}
+                    {i === 60 && "♔"}
+                    {i === 61 && "♗"}
+                    {i === 62 && "♘"}
+                    {i === 63 && "♖"}
                   </div>
-                )
+                );
               })}
             </div>
           </div>
@@ -64,30 +72,50 @@ export function ChessBoardViewer({ opponentName }: ChessBoardViewerProps) {
           </div>
 
           {/* Video Controls */}
-          <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+          <div className="flex items-center justify-between bg-gray-800 p-2 sm:p-3 rounded-lg">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white hover:bg-gray-700 px-2 sm:px-3"
+              >
                 <SkipBack className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white hover:bg-gray-700 px-2 sm:px-3"
+              >
                 <Play className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white hover:bg-gray-700 px-2 sm:px-3"
+              >
                 <SkipForward className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="flex-1 mx-4">
+            <div className="flex-1 mx-2 sm:mx-4">
               <div className="bg-gray-600 h-1 rounded-full">
                 <div className="bg-green-500 h-1 rounded-full w-1/3"></div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white hover:bg-gray-700 px-2 sm:px-3"
+              >
                 <Maximize2 className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white hover:bg-gray-700 px-2 sm:px-3"
+              >
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
@@ -95,5 +123,5 @@ export function ChessBoardViewer({ opponentName }: ChessBoardViewerProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

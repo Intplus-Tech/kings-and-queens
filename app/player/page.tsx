@@ -12,10 +12,6 @@ import { redirect } from "next/navigation";
 export default async function PlayerDashboard() {
   const playerRes = await getPlayer();
 
-  if (!playerRes.success || !playerRes.data) {
-    redirect("/auth/login");
-  }
-
   const player = Array.isArray(playerRes.data)
     ? playerRes.data[0]
     : playerRes.data;
@@ -37,9 +33,9 @@ export default async function PlayerDashboard() {
     : [];
 
   return (
-    <div className="grid grid-cols-12 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-4 md:gap-6 p-4 sm:p-6">
       {/* Left Sidebar - League Table */}
-      <div className="col-span-3">
+      <div className="md:col-span-1 lg:col-span-3">
         <div className="sticky top-6">
           <LeagueTable
             players={participants}
@@ -49,19 +45,20 @@ export default async function PlayerDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="col-span-6 space-y-6">
+      <div className="md:col-span-2 lg:col-span-6 space-y-4 md:space-y-6">
         <QuickStats stats={mockQuickStats} />
         <UpcomingMatch
           currentUserId={player._id}
           currentUserName={player.name || player.alias || "Player"}
           schedules={schedulesData.schedules}
           allMatches={schedulesData.allMatches}
+          compact={true}
         />
         <ChessBoardViewer opponentName="Amina" />
       </div>
 
       {/* Right Sidebar - Advertisement (Now Sticky) */}
-      <div className="col-span-3">
+      <div className="md:col-span-3 lg:col-span-3">
         <Advertisement />
       </div>
     </div>

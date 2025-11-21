@@ -36,22 +36,16 @@ export async function logInAction(values: SignInForm) {
       return { error: "Authentication failed: Invalid response from server." }
     }
 
-    // Set the authentication token cookie
     const cookieStore = await cookies()
     cookieStore.set("k_n_q_auth_token", authData.data.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24, // 1 day in seconds
+      maxAge: 60 * 60 * 24, // 1 day
       sameSite: "strict",
       path: "/",
     })
 
-    console.log("Login successful:", {
-      message: authData.message,
-      user: { ...authData.data.user, password: "***REDACTED***" },
-    })
 
-    // Return success with redirect path instead of redirecting here
     const userRole = authData.data.user.role
     const redirectPath = userRole === "coordinator" ? "/coordinator" : "/player"
 
@@ -74,10 +68,8 @@ export async function logInAction(values: SignInForm) {
 
 
 export async function logOutAction() {
-  // Remove the auth token cookie
   const cookieStore = await cookies()
   cookieStore.delete('k_n_q_auth_token')
 
-  // Redirect to the home page or login page
   redirect('/sign-in')
 }

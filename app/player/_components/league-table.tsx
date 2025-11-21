@@ -12,7 +12,7 @@ interface LeagueTableProps {
 export function LeagueTable({ players, tournamentName }: LeagueTableProps) {
   return (
     <Card className="bg-[#00000033] p-2">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 rounded-md bg-secondary">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 p-4 rounded-md bg-secondary">
         <CardTitle className="text-white flex items-center gap-2 text-lg">
           <p className="text-2xl"> 🏆 </p>
           <div className="flex flex-col">
