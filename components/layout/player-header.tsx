@@ -27,6 +27,7 @@ import {
 import { logOutAction } from "@/lib/actions/auth/signin.action";
 import { SchoolData } from "@/types/school";
 import { PlayerData } from "@/types/user";
+import { useTournament } from "@/context/tournament-context";
 
 interface PlayProps {
   user?: {
@@ -49,6 +50,9 @@ const navLinks = [
 export function PlayerHeader({ user }: PlayProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isParticipant } = useTournament();
+
+  console.log(isParticipant);
 
   const player =
     user?.data && Array.isArray(user.data) ? user.data[0] : user?.data;
@@ -85,6 +89,12 @@ export function PlayerHeader({ user }: PlayProps) {
         <nav className="hidden md:flex items-center gap-4">
           {navLinks.map(({ name, href, icon: Icon }) => {
             const active = isActive(href);
+
+            // Hide Play and Points if not a participant
+            if (!isParticipant && (name === "Play" || name === "Points")) {
+              return null;
+            }
+
             return (
               <Link key={name} href={href}>
                 <Button
@@ -157,6 +167,15 @@ export function PlayerHeader({ user }: PlayProps) {
               <nav className="flex flex-col gap-1 p-4">
                 {navLinks.map(({ name, href, icon: Icon }) => {
                   const active = isActive(href);
+
+                  // Hide Play and Points if not a participant
+                  if (
+                    !isParticipant &&
+                    (name === "Play" || name === "Points")
+                  ) {
+                    return null;
+                  }
+
                   return (
                     <Link key={name} href={href}>
                       <Button

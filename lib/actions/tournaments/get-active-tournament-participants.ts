@@ -28,6 +28,8 @@ export async function getActiveTournamentParticipantsAction(): Promise<GetActive
     // Fetch active tournaments
     const activeTournamentsRes = await getActiveTournamentsAction()
 
+    console.log("Active Tournaments Response:", activeTournamentsRes)
+
     if (!activeTournamentsRes.success || activeTournamentsRes.tournaments.length === 0) {
       return {
         participants: [],
