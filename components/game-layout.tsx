@@ -3,28 +3,33 @@
 import type { FC, ReactNode } from "react";
 
 interface GameLayoutProps {
-  leftColumn: ReactNode;
-  rightColumn: ReactNode;
+  infoColumn: ReactNode;
+  boardColumn: ReactNode;
+  detailsColumn: ReactNode;
 }
 
 /**
- * Two-column layout wrapper for active game
- * Responsive: stacks on mobile, side-by-side on desktop
+ * Three-column tournament layout inside a single container.
+ * Ensures info, board, and insights columns share equal height.
  */
 export const GameLayout: FC<GameLayoutProps> = ({
-  leftColumn,
-  rightColumn,
+  infoColumn,
+  boardColumn,
+  detailsColumn,
 }) => (
-  <div className="w-full max-w-6xl">
-    <h1 className="text-3xl font-bold text-center mb-4 text-indigo-400">
-      Multiplayer Chess
-    </h1>
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
-      {/* Left Column: Board & Timers */}
-      <div className="flex flex-col space-y-4">{leftColumn}</div>
-
-      {/* Right Column: Info Panels */}
-      <div className="space-y-4">{rightColumn}</div>
+  <div className="w-full max-w-[1280px]">
+    <div className="bg-[#302E2C] p-3 sm:p-5 lg:p-6 shadow-[0_30px_70px_rgba(0,0,0,0.65)]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)_320px] items-stretch">
+        <div className="order-2 flex h-full flex-col gap-4 lg:order-1">
+          {infoColumn}
+        </div>
+        <div className="order-1 flex h-full flex-col gap-4 lg:order-2">
+          {boardColumn}
+        </div>
+        <div className="order-3 flex h-full flex-col gap-4 lg:order-3 lg:col-span-2 xl:col-span-1">
+          {detailsColumn}
+        </div>
+      </div>
     </div>
   </div>
 );

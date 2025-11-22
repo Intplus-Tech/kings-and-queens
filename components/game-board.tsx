@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useMemo } from "react";
+import { type CSSProperties, type FC, useMemo } from "react";
 import { Chessboard } from "react-chessboard";
 import type { Square } from "chess.js";
 import { useChessGameContext } from "@/context/chess-game-context";
@@ -34,8 +34,15 @@ export const GameBoard: FC = () => {
     return success;
   };
 
-  // Compute check state (memoized to prevent infinite renders)
-  const checkState = useMemo(() => {
+  // Compute check state and king square (memoized to prevent infinite renders)
+  const checkInfo = useMemo(() => {
+    const base = {
+      inCheck: false,
+      inCheckmate: false,
+      squareStyles: {} as Record<string, CSSProperties>,
+      kingSquare: null as string | null,
+    };
+
     try {
       const inCheck =
         typeof game?.in_check === "function"
@@ -50,24 +57,16 @@ export const GameBoard: FC = () => {
           ? game.isCheckmate()
           : false;
 
-      return { inCheck, inCheckmate };
-    } catch (e) {
-      return { inCheck: false, inCheckmate: false };
-    }
-  }, [fen]); // fen changes when game state updates
+      const result = { ...base, inCheck, inCheckmate };
 
-  // Highlight king when in check
-  const squareStyles = useMemo(() => {
-    try {
-      const { inCheck, inCheckmate } = checkState;
+      if (!inCheck && !inCheckmate) {
+        return result;
+      }
 
-      if (!inCheck && !inCheckmate) return {};
-
-      const kingColor = typeof game?.turn === "function" ? game.turn() : null; // 'w' or 'b' (side to move)
+      const kingColor = typeof game?.turn === "function" ? game.turn() : null;
       const board = typeof game?.board === "function" ? game.board() : null;
-      if (!board || !kingColor) return {};
+      if (!board || !kingColor) return result;
 
-      // find king square (the king of the side to move is the one being checked)
       for (let r = 0; r < board.length; r++) {
         for (let f = 0; f < board[r].length; f++) {
           const piece = board[r][f];
@@ -77,39 +76,67 @@ export const GameBoard: FC = () => {
             (kingColor === "w" && piece.color === "w") ||
             (kingColor === "b" && piece.color === "b");
           if (isKing && colorMatches) {
-            const file = String.fromCharCode(97 + f); // a-h
-            const rank = 8 - r; // 8-1
+            const file = String.fromCharCode(97 + f);
+            const rank = 8 - r;
             const square = `${file}${rank}`;
 
-            // Use a strong radial gradient for check, and a darker variant for checkmate
             const background = inCheckmate
               ? "radial-gradient(circle, rgba(255,0,0,0.95) 0%, rgba(0,0,0,0.4) 60%)"
               : "radial-gradient(circle, rgba(255,0,0,0.85) 0%, rgba(255,0,0,0.12) 60%, transparent 70%)";
 
-            return {
+            result.squareStyles = {
               [square]: {
                 background,
                 boxShadow: inCheckmate
                   ? "0 0 30px 8px rgba(255,0,0,0.6)"
-                  : "0 0 18px 4px rgba(255,0,0,0.45)",
+                  : "0 0 18px 4px rgba(0,0,0,0.45)",
                 transition: "box-shadow 300ms ease, background 300ms ease",
               },
             };
+            result.kingSquare = square;
+            return result;
           }
         }
       }
+
+      return result;
     } catch (e) {
-      // ignore and return no styles
-      return {};
+      return base;
+    }
+  }, [fen]);
+
+  const { squareStyles, kingSquare, inCheck, inCheckmate } = checkInfo;
+
+  const overlayPosition = useMemo(() => {
+    if (!kingSquare) return null;
+    const fileIndex = kingSquare.charCodeAt(0) - 97;
+    const rank = parseInt(kingSquare[1], 10);
+    if (Number.isNaN(fileIndex) || Number.isNaN(rank)) return null;
+
+    const squarePercent = 100 / 8;
+    const halfSquare = squarePercent / 2;
+
+    let column: number;
+    let row: number;
+
+    if (boardOrientation === "white") {
+      column = fileIndex;
+      row = 8 - rank;
+    } else {
+      column = 7 - fileIndex;
+      row = rank - 1;
     }
 
-    return {};
-  }, [fen, checkState]);
+    return {
+      top: `${row * squarePercent + halfSquare}%`,
+      left: `${column * squarePercent + halfSquare}%`,
+    };
+  }, [kingSquare, boardOrientation]);
 
-  const { inCheck, inCheckmate } = checkState;
+  const responsiveBoardSize = "min(560px, 90vw)";
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <Chessboard
         position={fen}
         onPieceDrop={onDrop}
@@ -117,19 +144,30 @@ export const GameBoard: FC = () => {
         arePiecesDraggable={!gameResult && isMyTurn}
         customSquareStyles={squareStyles}
         customBoardStyle={{
-          borderRadius: "4px",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+          borderRadius: "0px",
+          border: "1px solid #4a3c32",
+          boxShadow: "0 25px 60px rgba(0, 0, 0, 0.55)",
+          width: "100%",
+          maxWidth: responsiveBoardSize,
+          margin: "0 auto",
         }}
+        customDarkSquareStyle={{ backgroundColor: "#b18763" }}
+        customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
       />
 
       {/* Overlay banner for check / checkmate */}
-      {(inCheck || inCheckmate) && (
-        <div className="pointer-events-none absolute inset-0 flex items-start justify-center">
+      {(inCheck || inCheckmate) && overlayPosition && (
+        <div className="pointer-events-none absolute inset-0">
           <div
-            className={`mt-4 rounded-md px-4 py-2 font-semibold text-white ${
-              inCheckmate ? "bg-red-700/90" : "bg-orange-600/90"
+            className={`absolute rounded-md px-4 py-2 font-semibold text-white ${
+              inCheckmate ? "bg-[#c44734]/90" : "bg-[#d98c34]/90"
             }`}
-            style={{ backdropFilter: "blur(4px)" }}
+            style={{
+              top: overlayPosition.top,
+              left: overlayPosition.left,
+              transform: "translate(-50%, -130%)",
+              backdropFilter: "blur(4px)",
+            }}
           >
             {inCheckmate ? "Checkmate" : "Check"}
           </div>

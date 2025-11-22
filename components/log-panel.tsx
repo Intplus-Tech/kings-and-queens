@@ -25,26 +25,28 @@ export const LogPanel: FC<LogPanelProps> = ({ logs, onClear }) => {
   }, []);
 
   return (
-    <Card className="mt-4 bg-gray-800 border-gray-700">
+    <Card className="mt-4 bg-[#1d1814] border-[#3a2f27] text-white shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
       <CardHeader className="py-2 flex flex-row items-center justify-between">
-        <CardTitle className="text-sm text-gray-400">Real-Time Log</CardTitle>
+        <CardTitle className="text-xs uppercase tracking-[0.4em] text-[#b8a48d]">
+          Real-Time Log
+        </CardTitle>
         <Button
           onClick={onClear}
           variant="ghost"
           size="sm"
-          className="text-gray-400 hover:bg-gray-700 hover:text-white h-8 px-2"
+          className="text-[#f5d6a5] hover:bg-[#2a241f] hover:text-white h-8 px-3"
         >
-          Clear Log
+          Clear
         </Button>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[200px] p-3">
-          <div className="space-y-1 text-xs font-mono">
+        <ScrollArea className="h-[180px] px-4 pb-4">
+          <div className="space-y-1 text-[11px] font-mono">
             {mounted &&
               logs.map((entry, idx) => (
                 <p
                   key={entry.id ?? idx}
-                  style={{ color: entry.color ?? "#fff" }}
+                  style={{ color: entry.color ?? "#f4e9d0" }}
                   className="break-all whitespace-pre-wrap"
                 >
                   {entry.message}

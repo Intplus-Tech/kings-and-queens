@@ -527,9 +527,21 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       reason: string;
       winner?: "white" | "black";
     }) => {
-      console.log("[v0] Context: Game over:", d.reason);
-      addLog(`Game Over: ${d.reason}`, "#ff4444");
-      setGameResult(d.reason);
+      const reason = d.reason?.trim() ?? "";
+      const isSoftCheck = /check/i.test(reason) && !/mate/i.test(reason);
+
+      if (isSoftCheck) {
+        console.log(
+          "[v0] Context: Check warning received, keeping game active:",
+          reason
+        );
+        addLog(`Warning: ${reason}`, "#ffcc00");
+        return;
+      }
+
+      console.log("[v0] Context: Game over:", reason);
+      addLog(`Game Over: ${reason}`, "#ff4444");
+      setGameResult(reason);
       setIsGameActive(false);
     };
 
@@ -597,15 +609,24 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   }, [socket, chessGame, addLog, updateTimersFromServer]);
 
   // Check detection
+  const lastCheckFenRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
-    if (chessGame.isInCheck()) {
-      const kingColor = chessGame.getCurrentTurn();
-      if (
-        (myColor === "white" && kingColor === "white") ||
-        (myColor === "black" && kingColor === "black")
-      ) {
-        addLog("You are in check!", "#ffcc00");
-      }
+    const kingInCheck = chessGame.isInCheck();
+
+    if (!kingInCheck) {
+      lastCheckFenRef.current = null;
+      return;
+    }
+
+    const kingColor = chessGame.getCurrentTurn();
+    const isMyKingInCheck =
+      (myColor === "white" && kingColor === "white") ||
+      (myColor === "black" && kingColor === "black");
+
+    if (isMyKingInCheck && lastCheckFenRef.current !== chessGame.fen) {
+      addLog("You are in check!", "#ffcc00");
+      lastCheckFenRef.current = chessGame.fen;
     }
   }, [chessGame.fen, myColor, chessGame, addLog]);
 

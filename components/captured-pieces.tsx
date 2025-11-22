@@ -24,24 +24,30 @@ export const CapturedPiecesDisplay: FC<CapturedPiecesDisplayProps> = ({
     .join(" ");
 
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white">
-      <CardHeader className="py-2">
-        <CardTitle className="text-lg">Captured Pieces</CardTitle>
+    <Card className="bg-[#1d1814] border-[#3a2f27] text-white shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+      <CardHeader className="py-3">
+        <CardTitle className="text-sm uppercase tracking-[0.4em] text-[#bba98f]">
+          Captured Pieces
+        </CardTitle>
       </CardHeader>
-      <CardContent className="p-3 space-y-2 text-2xl">
+      <CardContent className="p-4 space-y-4 text-2xl">
         <div className="flex flex-col">
-          <span className="text-gray-400 text-sm">By White</span>
+          <span className="text-xs text-[#8c8174] uppercase tracking-[0.3em]">
+            By White
+          </span>
           <div className="min-h-[30px] font-serif text-white">
             {whiteCapturedPieces || (
-              <span className="text-gray-600 text-sm">None</span>
+              <span className="text-sm text-[#4d433a]">None</span>
             )}
           </div>
         </div>
         <div className="flex flex-col">
-          <span className="text-gray-400 text-sm">By Black</span>
+          <span className="text-xs text-[#8c8174] uppercase tracking-[0.3em]">
+            By Black
+          </span>
           <div className="min-h-[30px] font-serif text-white">
             {blackCapturedPieces || (
-              <span className="text-gray-600 text-sm">None</span>
+              <span className="text-sm text-[#4d433a]">None</span>
             )}
           </div>
         </div>

@@ -48,13 +48,17 @@ export const GameControls: FC = () => {
     addLog("PGN: " + (pgn || "No moves made yet."), "#aaccff");
   };
 
+  const showActionRow = isGameActive && !gameResult && myColor !== "observer";
+
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Actions</CardTitle>
+    <Card className="bg-[#302E2C]/0 text-white border-0 w-full">
+      <CardHeader className=" sr-only">
+        <CardTitle className="text-sm uppercase tracking-[0.35em] text-[#bda98d] sr-only">
+          Actions
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="grid grid-cols-2 gap-2">
+      <CardContent className="flex flex-col gap-4">
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Button
             variant="outline"
             size="sm"
@@ -63,7 +67,7 @@ export const GameControls: FC = () => {
                 boardOrientation === "white" ? "black" : "white"
               )
             }
-            className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+            className="bg-[#2a241f] border-[#45382f] text-[#e7d8c1] hover:bg-[#3a2f27] w-full"
           >
             <FlipVertical className="mr-2 h-4 w-4" />
             Flip Board
@@ -72,104 +76,96 @@ export const GameControls: FC = () => {
             variant="outline"
             size="sm"
             onClick={handleExportPgn}
-            className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+            className="bg-[#2a241f] border-[#45382f] text-[#e7d8c1] hover:bg-[#3a2f27] w-full"
             disabled={game?.moves().length === 0}
           >
             <Download className="mr-2 h-4 w-4" />
             Export PGN
           </Button>
-        </div>
-
-        {isGameActive && !gameResult && myColor !== "observer" && (
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-700">
-            {drawOffer.isPending && !drawOffer.isOfferedByMe ? (
-              <>
+          {showActionRow && (
+            <div className="w-full">
+              {drawOffer.isPending && !drawOffer.isOfferedByMe ? (
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="bg-yellow-800 hover:bg-yellow-800 cursor-not-allowed text-white hover:text-white"
+                  className="bg-[#a86f26] hover:bg-[#a86f26] cursor-not-allowed text-white w-full"
                   disabled
-                  // onClick={acceptDraw}
                 >
                   <Handshake className="mr-2 h-4 w-4" />
                   Draw Pending
                 </Button>
-                {/* <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-gray-700 border-gray-600 hover:bg-gray-600"
-                  onClick={rejectDraw}
-                >
-                  Reject
-                </Button> */}
-              </>
-            ) : (
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!isMyTurn || drawOffer.isPending}
+                      className="bg-[#2a241f] border-[#45382f] text-[#e7d8c1] hover:bg-[#3a2f27] disabled:opacity-40 w-full"
+                    >
+                      <Handshake className="mr-2 h-4 w-4" />
+                      {drawOffer.isPending && drawOffer.isOfferedByMe
+                        ? "Draw Pending..."
+                        : "Offer Draw"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-[#1f1a16] border-[#3a2f27] text-white">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Offer Draw</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to offer a draw to your opponent?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-gray-700 border-gray-600 hover:bg-gray-600">
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={offerDraw}
+                        className="bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        Offer Draw
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          )}
+
+          {showActionRow && (
+            <div className="w-full">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!isMyTurn || drawOffer.isPending}
-                    className="bg-gray-700 border-gray-600 hover:bg-gray-600 disabled:opacity-50"
-                  >
-                    <Handshake className="mr-2 h-4 w-4" />
-                    {drawOffer.isPending && drawOffer.isOfferedByMe
-                      ? "Draw Pending..."
-                      : "Offer Draw"}
+                  <Button variant="destructive" size="sm" className="w-full">
+                    <Flag className="mr-2 h-4 w-4" />
+                    Resign
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="bg-gray-800 border-gray-700 text-white">
+                <AlertDialogContent className="bg-[#1f1a16] border-[#3a2f27] text-white">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Offer Draw</AlertDialogTitle>
+                    <AlertDialogTitle>Resign Game</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to offer a draw to your opponent?
+                      Are you sure you want to resign? This will end the game
+                      immediately.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-gray-700 border-gray-600 hover:bg-gray-600">
+                    <AlertDialogCancel className="bg-[#2a241f] border-[#45382f] text-white hover:bg-[#3a2f27]">
                       Cancel
                     </AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={offerDraw}
-                      className="bg-indigo-600 hover:bg-indigo-700"
+                      onClick={resign}
+                      className="bg-[#c44734] hover:bg-[#a73628]"
                     >
-                      Offer Draw
+                      Resign
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            )}
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Flag className="mr-2 h-4 w-4" />
-                  Resign
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-gray-800 border-gray-700 text-white">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Resign Game</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to resign? This will end the game
-                    immediately.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-gray-700 border-gray-600 hover:bg-gray-600">
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={resign}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    Resign
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

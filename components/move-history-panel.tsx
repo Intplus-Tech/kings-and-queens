@@ -46,19 +46,21 @@ export const MoveHistoryPanel: FC<MoveHistoryPanelProps> = ({
   }, [] as { turn: number; white: string; black: string }[]);
 
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white">
-      <CardHeader className="py-2">
-        <CardTitle className="text-lg">Move History</CardTitle>
+    <Card className="bg-[#1c1814] border-[#3b3027] text-white shadow-[0_12px_30px_rgba(0,0,0,0.4)]">
+      <CardHeader className="py-3">
+        <CardTitle className="text-sm uppercase tracking-[0.4em] text-[#bba98f]">
+          Move History
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[200px] p-3">
+        <ScrollArea className="h-[220px] px-4 pb-4">
           <div ref={scrollRef} className="text-sm">
-            <table className="w-full text-left table-fixed">
-              <thead className="sticky top-0 bg-gray-900 border-b border-gray-700">
+            <table className="w-full table-fixed text-left">
+              <thead className="sticky top-0 bg-[#221d18] text-[11px] uppercase tracking-[0.3em] text-[#8f8579]">
                 <tr>
-                  <th className="w-1/5 text-gray-400 py-1">#</th>
-                  <th className="w-2/5 text-white py-1">White</th>
-                  <th className="w-2/5 text-white py-1">Black</th>
+                  <th className="w-1/5 py-2">#</th>
+                  <th className="w-2/5 py-2">White</th>
+                  <th className="w-2/5 py-2">Black</th>
                 </tr>
               </thead>
               <tbody>
@@ -66,12 +68,14 @@ export const MoveHistoryPanel: FC<MoveHistoryPanelProps> = ({
                   <tr
                     key={index}
                     className={`${
-                      index % 2 === 0 ? "bg-gray-800" : "bg-gray-700"
-                    } hover:bg-indigo-900 transition-colors duration-150`}
+                      index % 2 === 0 ? "bg-[#1e1915]" : "bg-[#201b16]"
+                    } border-b border-[#2d251f]/50`}
                   >
-                    <td className="py-1">{turn.turn}.</td>
-                    <td className="py-1 font-semibold">{turn.white}</td>
-                    <td className="py-1">{turn.black}</td>
+                    <td className="py-2 text-[#7a6f63]">{turn.turn}.</td>
+                    <td className="py-2 font-semibold text-[#f4e9d0]">
+                      {turn.white}
+                    </td>
+                    <td className="py-2 text-[#d8c9b0]">{turn.black}</td>
                   </tr>
                 ))}
               </tbody>
