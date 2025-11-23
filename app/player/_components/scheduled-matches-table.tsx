@@ -12,8 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import type { Schedule, Match } from "@/types/schedule";
-import type { PlayerData } from "@/types/user";
+import type { Schedule, Match, ScheduleMatchPlayer } from "@/types/schedule";
 
 interface GameData {
   _id: string;
@@ -29,8 +28,8 @@ interface MatchWithGame extends Match {
   gameData?: GameData;
   game?: GameData;
   startTime?: string;
-  player1Data?: PlayerData;
-  player2Data?: PlayerData;
+  player1Data?: ScheduleMatchPlayer;
+  player2Data?: ScheduleMatchPlayer;
 }
 
 interface ScheduledMatchesTableProps {
@@ -56,6 +55,10 @@ export function ScheduledMatchesTable({
     } | null = null;
 
     for (const match of allMatches) {
+      const isParticipant =
+        match.player1 === currentUserId || match.player2 === currentUserId;
+      if (!isParticipant) continue;
+
       const gameData = match.gameData || match.game;
 
       if (gameData?.startTime) {

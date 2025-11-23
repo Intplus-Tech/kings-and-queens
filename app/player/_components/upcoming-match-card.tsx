@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
-import type { Schedule, Match } from "@/types/schedule";
-import type { PlayerData } from "@/types/user";
+import type { Schedule, Match, ScheduleMatchPlayer } from "@/types/schedule";
 
 interface GameData {
   _id: string;
@@ -21,8 +20,8 @@ interface MatchWithGame extends Match {
   gameData?: GameData;
   game?: GameData;
   startTime?: string;
-  player1Data?: PlayerData;
-  player2Data?: PlayerData;
+  player1Data?: ScheduleMatchPlayer;
+  player2Data?: ScheduleMatchPlayer;
 }
 
 interface UpcomingMatchCardProps {
@@ -46,6 +45,10 @@ export function UpcomingMatchCard({
     } | null = null;
 
     for (const match of allMatches) {
+      const isParticipant =
+        match.player1 === currentUserId || match.player2 === currentUserId;
+      if (!isParticipant) continue;
+
       const gameData = match.gameData || match.game;
 
       if (gameData?.startTime) {
@@ -89,7 +92,20 @@ export function UpcomingMatchCard({
       upcomingMatchData.match.game?.startTime
     )
   ) {
-    return null;
+    return (
+      <Card className="border-indigo-500/20">
+        <CardHeader>
+          <CardTitle className="text-white font-normal text-lg">
+            Your Upcoming Match
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No upcoming matches scheduled yet.
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

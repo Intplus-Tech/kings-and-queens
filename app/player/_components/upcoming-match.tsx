@@ -1,6 +1,6 @@
 "use client";
 
-import type { Schedule, Match } from "@/types/schedule";
+import type { Schedule, Match, ScheduleMatchPlayer } from "@/types/schedule";
 import { UpcomingMatchCard } from "./upcoming-match-card";
 import { ScheduledMatchesTable } from "./scheduled-matches-table";
 
@@ -26,6 +26,8 @@ interface MatchWithGame extends Match {
   gameData?: GameData;
   game?: GameData;
   startTime?: string;
+  player1Data?: ScheduleMatchPlayer;
+  player2Data?: ScheduleMatchPlayer;
 }
 
 export function UpcomingMatch({
@@ -35,12 +37,16 @@ export function UpcomingMatch({
   compact = false,
 }: UpcomingMatchProps) {
   const typedMatches = allMatches as MatchWithGame[];
+  const participantMatches = typedMatches.filter(
+    (match) =>
+      match.player1 === currentUserId || match.player2 === currentUserId
+  );
 
   return (
     <div className="space-y-6">
       <UpcomingMatchCard
         schedules={schedules}
-        allMatches={typedMatches}
+        allMatches={participantMatches}
         currentUserId={currentUserId}
       />
       <ScheduledMatchesTable

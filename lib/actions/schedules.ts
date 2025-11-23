@@ -1,9 +1,28 @@
 "use server";
 
-import type { Schedule } from "@/types/schedule";
-import type { PlayerData } from "@/types/user";
+import type {
+  Match,
+  Schedule,
+  ScheduleMatchPlayer,
+} from "@/types/schedule";
 import { cookies } from "next/headers";
-import { getPlayerByIdAction } from "./user/user.action";
+
+type ApiMatchPlayerField = string | ScheduleMatchPlayer;
+
+type ApiGameField = string | { _id: string;[key: string]: any } | null;
+
+type ApiMatch = Omit<
+  Match,
+  "player1" | "player2" | "gameId" | "player1Data" | "player2Data" | "gameMeta"
+> & {
+  player1: ApiMatchPlayerField;
+  player2: ApiMatchPlayerField;
+  gameId: ApiGameField;
+};
+
+type ApiSchedule = Omit<Schedule, "matches"> & {
+  matches: ApiMatch[];
+};
 
 interface GameData {
   _id: string;
@@ -15,20 +34,138 @@ interface GameData {
   [key: string]: any;
 }
 
-interface MatchWithGameData {
-  _id: string;
-  player1: string;
-  player2: string;
-  gameId: string;
-  scheduled: boolean;
+interface MatchWithGameData extends Match {
   gameData?: GameData;
   startTime?: string;
-  player1Data?: PlayerData;
-  player2Data?: PlayerData;
 }
 
 interface ScheduleWithGames extends Schedule {
   matches: MatchWithGameData[];
+}
+
+interface NormalizedPlayerResult {
+  id: string;
+  data?: ScheduleMatchPlayer;
+}
+
+const normalizePlayerField = (
+  player: ApiMatchPlayerField
+): NormalizedPlayerResult => {
+  if (!player) {
+    return { id: "" };
+  }
+
+  if (typeof player === "string") {
+    return { id: player };
+  }
+
+  const { _id, name, alias, rating, schoolId } = player;
+
+  return {
+    id: _id,
+    data: {
+      _id,
+      name,
+      alias,
+      rating,
+      schoolId,
+    },
+  };
+};
+
+const normalizeGameField = (
+  game: ApiGameField
+): { id: string; meta?: Record<string, any> } => {
+  if (!game) {
+    return { id: "" };
+  }
+
+  if (typeof game === "string") {
+    return { id: game };
+  }
+
+  const { _id, ...rest } = game;
+  return {
+    id: _id,
+    meta: Object.keys(rest).length ? rest : undefined,
+  };
+};
+
+const normalizeMatch = (match: ApiMatch): Match => {
+  const player1 = normalizePlayerField(match.player1);
+  const player2 = normalizePlayerField(match.player2);
+  const game = normalizeGameField(match.gameId);
+
+  return {
+    ...match,
+    player1: player1.id,
+    player2: player2.id,
+    gameId: game.id,
+    player1Data: player1.data,
+    player2Data: player2.data,
+    gameMeta: game.meta,
+  };
+};
+
+const normalizeSchedules = (schedules: ApiSchedule[] = []): Schedule[] =>
+  schedules.map((schedule) => ({
+    ...schedule,
+    matches: schedule.matches.map((match) => normalizeMatch(match)),
+  }));
+
+const normalizeSchedule = (
+  schedule: ApiSchedule | null | undefined
+): Schedule | null => {
+  if (!schedule) return null;
+  return {
+    ...schedule,
+    matches: schedule.matches.map((match) => normalizeMatch(match)),
+  } as Schedule;
+};
+
+async function attachGameDataToMatch(
+  match: Match,
+  token: string
+): Promise<MatchWithGameData> {
+  if (!match.gameId) {
+    return {
+      ...match,
+      gameData: undefined,
+      startTime: undefined,
+    };
+  }
+
+  try {
+    const gameResponse = await fetch(
+      `${process.env.BASE_URL}/games/${match.gameId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!gameResponse.ok) {
+      throw new Error(`Failed to fetch game ${match.gameId}`);
+    }
+
+    const gameJson = await gameResponse.json();
+    const gameData: GameData | undefined = gameJson.data;
+
+    return {
+      ...match,
+      gameData,
+      startTime: gameData?.startTime,
+    };
+  } catch (error) {
+    console.error(`Failed to fetch game data for ${match.gameId}:`, error);
+    return {
+      ...match,
+      gameData: undefined,
+      startTime: undefined,
+    };
+  }
 }
 
 /**
@@ -61,9 +198,11 @@ export async function fetchPlayerSchedules() {
     }
 
     const scheduleJson = await scheduleResponse.json();
-    const schedules: Schedule[] = scheduleJson.data;
+    const schedules = normalizeSchedules(
+      (scheduleJson.data || []) as ApiSchedule[]
+    );
 
-    if (!schedules || schedules.length === 0) {
+    if (!schedules.length) {
       return {
         schedules: [],
         upcomingMatch: null,
@@ -71,90 +210,14 @@ export async function fetchPlayerSchedules() {
       };
     }
 
-    // Collect all unique player IDs from all matches
-    const playerIds = new Set<string>();
-    for (const schedule of schedules) {
-      for (const match of schedule.matches) {
-        playerIds.add(match.player1);
-        playerIds.add(match.player2);
-      }
-    }
-
-    // Fetch all player data at once
-    const playerDataMap = new Map<string, PlayerData>();
-    if (playerIds.size > 0) {
-      const playerPromises = Array.from(playerIds).map(async (playerId) => {
-        try {
-          const playerRes = await getPlayerByIdAction(playerId);
-          if (playerRes.success && playerRes.data) {
-            return { id: playerId, data: playerRes.data };
-          }
-        } catch (e) {
-          console.error(`Failed to fetch player ${playerId}:`, e);
-        }
-        return null;
-      });
-
-      const players = await Promise.all(playerPromises);
-      players.forEach((p) => {
-        if (p) playerDataMap.set(p.id, p.data);
-      });
-    }
-
-    // Fetch game data for all matches
     const now = new Date();
 
-    const schedulesWithGames = await Promise.all(
+    const schedulesWithGames: ScheduleWithGames[] = await Promise.all(
       schedules.map(async (schedule) => {
         const matchesWithGames = await Promise.all(
-          schedule.matches.map(async (match) => {
-            try {
-              const gameResponse = await fetch(
-                `${process.env.BASE_URL}/games/${match.gameId}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                }
-              );
-
-              let gameData: GameData | undefined;
-
-              if (gameResponse.ok) {
-                const gameJson = await gameResponse.json();
-                gameData = gameJson.data;
-              }
-
-              // Get player data from pre-fetched map
-              const player1Data = playerDataMap.get(match.player1);
-              const player2Data = playerDataMap.get(match.player2);
-
-              return {
-                ...match,
-                gameData,
-                startTime: gameData?.startTime,
-                player1Data,
-                player2Data,
-              } as MatchWithGameData;
-            } catch (error) {
-              console.error(
-                `Failed to fetch game data for ${match.gameId}:`,
-                error
-              );
-              // Continue with match data even if game fetch fails
-              const player1Data = playerDataMap.get(match.player1);
-              const player2Data = playerDataMap.get(match.player2);
-
-              return {
-                ...match,
-                gameData: undefined,
-                startTime: undefined,
-                player1Data,
-                player2Data,
-              } as MatchWithGameData;
-            }
-          })
+          schedule.matches.map((match) =>
+            attachGameDataToMatch(match, token)
+          )
         );
 
         return {
@@ -238,78 +301,14 @@ export async function fetchScheduleById(scheduleId: string) {
     }
 
     const json = await response.json();
-    const schedule: Schedule = json.data;
+    const schedule = normalizeSchedule(json.data as ApiSchedule);
 
-    // Collect all unique player IDs from matches
-    const playerIds = new Set<string>();
-    for (const match of schedule.matches) {
-      playerIds.add(match.player1);
-      playerIds.add(match.player2);
+    if (!schedule) {
+      throw new Error("Failed to normalize schedule data");
     }
 
-    // Fetch all player data at once
-    const playerDataMap = new Map<string, PlayerData>();
-    if (playerIds.size > 0) {
-      console.log(`Fetching ${playerIds.size} player(s)`);
-      const playerPromises = Array.from(playerIds).map(async (playerId) => {
-        try {
-          const playerRes = await getPlayerByIdAction(playerId);
-          if (playerRes.success && playerRes.data) {
-            return { id: playerId, data: playerRes.data };
-          }
-        } catch (e) {
-          console.error(`Failed to fetch player ${playerId}:`, e);
-        }
-        return null;
-      });
-
-      const players = await Promise.all(playerPromises);
-      players.forEach((p) => {
-        if (p) playerDataMap.set(p.id, p.data);
-      });
-    }
-
-    // Fetch game data for all matches
     const matchesWithGames = await Promise.all(
-      schedule.matches.map(async (match) => {
-        try {
-          const gameResponse = await fetch(
-            `${process.env.BASE_URL}/games/${match.gameId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          let gameData: GameData | undefined;
-
-          if (gameResponse.ok) {
-            const gameJson = await gameResponse.json();
-            gameData = gameJson.data;
-          }
-
-          // Get player data from pre-fetched map
-          const player1Data = playerDataMap.get(match.player1);
-          const player2Data = playerDataMap.get(match.player2);
-
-          return {
-            ...match,
-            gameData,
-            startTime: gameData?.startTime,
-            player1Data,
-            player2Data,
-          } as MatchWithGameData;
-        } catch (error) {
-          console.error(`Failed to fetch game for match ${match._id}:`, error);
-          return {
-            ...match,
-            gameData: undefined,
-            startTime: undefined,
-          } as MatchWithGameData;
-        }
-      })
+      schedule.matches.map((match) => attachGameDataToMatch(match, token))
     );
 
     return {

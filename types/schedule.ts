@@ -30,12 +30,23 @@ export interface Group {
   updatedAt: string
 }
 
+export interface ScheduleMatchPlayer {
+  _id: string
+  name?: string
+  alias?: string
+  rating?: number
+  schoolId?: string | { _id: string; name: string }
+}
+
 export interface Match {
   player1: string
   player2: string
   gameId: string
   scheduled: boolean
   _id: string
+  player1Data?: ScheduleMatchPlayer
+  player2Data?: ScheduleMatchPlayer
+  gameMeta?: Record<string, any>
 }
 
 export interface Schedule {
