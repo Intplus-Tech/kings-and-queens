@@ -4,6 +4,10 @@ import { PlayerHeader } from "@/components/layout/player-header";
 import { checkPlayerParticipation } from "@/lib/actions/tournaments/check-participation";
 import { TournamentProvider } from "@/context/tournament-context";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 export default async function AdminLayout({
   children,
 }: {

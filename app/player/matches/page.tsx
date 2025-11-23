@@ -22,10 +22,21 @@ interface MatchWithGame extends Match {
 
 export default async function PlayerMatchesPage() {
   const playerRes = await getPlayer();
+  const loginRedirect = `/auth/sign-in?callbackUrl=${encodeURIComponent(
+    "/player/matches"
+  )}`;
+
+  if (!playerRes.success || !playerRes.data) {
+    redirect(loginRedirect);
+  }
 
   const player = Array.isArray(playerRes.data)
     ? playerRes.data[0]
     : playerRes.data;
+
+  if (!player?._id) {
+    redirect(loginRedirect);
+  }
 
   const schedulesData = await fetchPlayerSchedules().catch((err) => {
     console.error("Failed to fetch schedules:", err);

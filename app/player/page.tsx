@@ -13,10 +13,21 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default async function PlayerDashboard() {
   const playerRes = await getPlayer();
+  const loginRedirect = `/auth/sign-in?callbackUrl=${encodeURIComponent(
+    "/player"
+  )}`;
+
+  if (!playerRes.success || !playerRes.data) {
+    redirect(loginRedirect);
+  }
 
   const player = Array.isArray(playerRes.data)
     ? playerRes.data[0]
     : playerRes.data;
+
+  if (!player?._id) {
+    redirect(loginRedirect);
+  }
 
   const [participantsRes, schedulesData] = await Promise.all([
     getActiveTournamentParticipantsAction(),
