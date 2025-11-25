@@ -2,7 +2,6 @@
 
 import type { FC } from "react";
 import { useChessGameContext } from "@/context/chess-game-context";
-import { GameStatus } from "./game-status";
 import { MoveHistoryPanel } from "./move-history-panel";
 import { LogPanel } from "./log-panel";
 import { DrawOfferModal } from "./draw-offer-modal";
@@ -131,12 +130,15 @@ export const GameInfoSidebar: FC = () => {
     );
   };
 
+  const topColor = myColor === "black" ? "white" : "black";
+  const bottomColor = myColor === "black" ? "black" : "white";
+
   return (
     <>
       <section className="bg-[#302E2C] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.5)] space-y-4">
-        {renderPlayerSection("black", "top")}
+        {renderPlayerSection(topColor, "top")}
         <MoveHistoryPanel moveHistory={moveHistory} />
-        {renderPlayerSection("white", "bottom")}
+        {renderPlayerSection(bottomColor, "bottom")}
       </section>
       {/* i'll only show this when debugging */}
       {/* <LogPanel logs={logs} onClear={clearLogs} /> */}

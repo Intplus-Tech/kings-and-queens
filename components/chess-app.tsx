@@ -190,16 +190,12 @@ export const ChessApp: FC = () => {
 
   const boardColumn = (
     <section className="bg-[#302E2C]/0">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4">
-          {boardTimers.black}
-          <div
-            className="mx-auto w-full"
-            style={{ maxWidth: "min(560px, 90vw)" }}
-          >
-            <GameBoard />
-          </div>
-          {boardTimers.white}
+      <div className="space-y-4">
+        <div
+          className="mx-auto w-full"
+          style={{ maxWidth: "min(560px, 90vw)" }}
+        >
+          <GameBoard />
         </div>
         <GameControls />
       </div>
