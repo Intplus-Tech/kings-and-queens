@@ -189,7 +189,7 @@ export async function fetchPlayerSchedules() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        next: { revalidate: 300 }, // Cache for 5 minutes on Vercel
+        // next: { revalidate: 300 }, // Cache for 5 minutes on Vercel
       }
     );
 

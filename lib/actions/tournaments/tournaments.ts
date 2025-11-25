@@ -263,7 +263,7 @@ export async function getActiveTournamentsAction(): Promise<ActiveTournamentsRes
       headers: {
         "Authorization": `Bearer ${token}`,
       },
-      next: { revalidate: 300 },
+      // next: { revalidate: 300 },
     })
 
     let result: any = undefined

@@ -1,20 +1,29 @@
 import React from "react";
 import { cookies } from "next/headers";
-// import MultiplayerChess from "@/components/ChessEngine";
 import { ChessGameProvider } from "@/context/chess-game-context";
 import { ChessApp } from "@/components/chess-app";
 
-const page = async () => {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("k_n_q_auth_token")?.value;
+type PlayPageProps = {
+  searchParams?: {
+    gameId?: string;
+    [key: string]: string | string[] | undefined;
+  };
+};
 
-  console.log("token:", token);
+const PlayPage = async ({ searchParams }: PlayPageProps) => {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("k_n_q_auth_token")?.value || null;
+  const gameIdFromSearch =
+    typeof searchParams?.gameId === "string" ? searchParams.gameId : undefined;
 
   return (
-    <ChessGameProvider token={token}>
+    <ChessGameProvider
+      token={token || undefined}
+      initialGameId={gameIdFromSearch}
+    >
       <ChessApp />
     </ChessGameProvider>
   );
 };
 
-export default page;
+export default PlayPage;

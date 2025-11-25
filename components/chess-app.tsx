@@ -1,14 +1,14 @@
 "use client";
 
-import type { FC } from "react";
+import React, { type FC } from "react";
 import { useChessGameContext } from "@/context/chess-game-context";
 import { GameSetup } from "./game-setup";
 import { GameLayout } from "./game-layout";
 import { GameBoard } from "./game-board";
 import { PlayerTimer } from "./player-timer";
 import { GameInfoSidebar } from "./game-info-sidebar";
-import { LogPanel } from "./log-panel";
 import { GameControls } from "./game-controls";
+import { useToast } from "@/hooks/use-toast";
 
 /**
  * Main chess application orchestrator
@@ -31,10 +31,41 @@ export const ChessApp: FC = () => {
     isWhiteTimeLow,
     isBlackTimeLow,
     logs,
-    clearLogs,
     game,
   } = useChessGameContext();
-  // Get current turn from game context (via game object)
+  const { toast } = useToast();
+  const deliveredLogIds = React.useRef<Set<string>>(new Set());
+
+  const shouldNotify = React.useCallback((message: string | undefined) => {
+    if (!message) return false;
+    const patterns = [
+      /game over/i,
+      /draw offer accepted/i,
+      /match ended/i,
+      /won by/i,
+      /timeout/i,
+    ];
+    return patterns.some((pattern) => pattern.test(message));
+  }, []);
+
+  React.useEffect(() => {
+    logs.forEach((entry) => {
+      if (!entry?.id || deliveredLogIds.current.has(entry.id)) return;
+      deliveredLogIds.current.add(entry.id);
+      if (!shouldNotify(entry.message)) return;
+      const variant: "default" | "destructive" =
+        entry.color && /(ff4444|ff6666|red|error)/i.test(entry.color)
+          ? "destructive"
+          : "default";
+      toast({
+        title: entry.message,
+        description: entry.timestamp
+          ? new Date(entry.timestamp).toLocaleTimeString()
+          : undefined,
+        variant,
+      });
+    });
+  }, [logs, toast, shouldNotify]);
   const currentTurn = game?.turn?.() === "w" ? "white" : "black";
 
   // Look up resolved Player objects from cache; fall back to id if not resolved yet
@@ -66,8 +97,13 @@ export const ChessApp: FC = () => {
           gameId={gameId}
           setGameId={setGameId}
           disabled={!isConnected || !authUserId}
+          players={players}
+          playersInfo={playersInfo}
+          myColor={myColor}
+          authUserId={authUserId}
+          isConnected={isConnected}
         />
-        <LogPanel logs={logs} onClear={clearLogs} />
+        {/* LogPanel kept for development debugging within ./log-panel.tsx */}
       </div>
     );
   }

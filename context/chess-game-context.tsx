@@ -97,11 +97,13 @@ const ChessGameContext = createContext<ChessGameContextValue | undefined>(
 interface ChessGameProviderProps {
   children: ReactNode;
   token?: string;
+  initialGameId?: string | null;
 }
 
 export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   children,
   token,
+  initialGameId,
 }) => {
   // --- Game Logic Hooks ---
   const chessGame = useChessGame();
@@ -152,8 +154,11 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   // ====================================================================
 
   // --- State Hooks ---
+  const [gameIdSource, setGameIdSource] = React.useState<"auto" | "manual">(
+    () => (initialGameId ? "auto" : "manual")
+  );
   const [gameId, setGameIdState] = React.useState<string>(
-    () => getLocalStorageItem(LS_KEY_GAME_ID) || ""
+    () => initialGameId || getLocalStorageItem(LS_KEY_GAME_ID) || ""
   );
   const [myColor, setMyColor] = React.useState<
     "white" | "black" | "observer" | null
@@ -199,6 +204,19 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
   // --- Socket Hook ---
   const { socket, isConnected } = useSocket(token);
+  const lastJoinAttemptRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!initialGameId) return;
+    setGameIdSource("auto");
+    setGameIdState(initialGameId);
+  }, [initialGameId]);
+
+  React.useEffect(() => {
+    if (!isConnected) {
+      lastJoinAttemptRef.current = null;
+    }
+  }, [isConnected]);
 
   // ====================================================================
   // Resolver: Fetch and cache Player objects from IDs
@@ -375,6 +393,15 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     },
     [isConnected, authUserId, socket, addLog]
   );
+
+  React.useEffect(() => {
+    if (gameIdSource !== "auto") return;
+    if (!gameId || !isConnected || !authUserId) return;
+    if (lastJoinAttemptRef.current === gameId) return;
+
+    joinGame(gameId);
+    lastJoinAttemptRef.current = gameId;
+  }, [gameId, gameIdSource, isConnected, authUserId, joinGame]);
 
   // ====================================================================
   // Socket Event Listeners Setup
@@ -684,6 +711,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
     // Setters
     setGameId: (id: string) => {
+      setGameIdSource("manual");
       setGameIdState(id);
     },
     setBoardOrientation,

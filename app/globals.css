@@ -81,3 +81,24 @@ body {
 .chess-ui * {
   border-radius: 0 !important;
 }
+
+/* General scrollbar styling (applies to both vertical and horizontal scrollbars) */
+::-webkit-scrollbar {
+  width: 5px; /* For vertical scrollbar */
+  height: 5px; /* For horizontal scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: #e0ecfd;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b98731;
+  border: 1px solid white;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b98731;
+}
