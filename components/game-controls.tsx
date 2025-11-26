@@ -72,7 +72,7 @@ export const GameControls: FC = () => {
             <FlipVertical className="mr-2 h-4 w-4" />
             Flip Board
           </Button>
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={handleExportPgn}
@@ -81,7 +81,7 @@ export const GameControls: FC = () => {
           >
             <Download className="mr-2 h-4 w-4" />
             Export PGN
-          </Button>
+          </Button> */}
           {showActionRow && (
             <div className="w-full">
               {drawOffer.isPending && !drawOffer.isOfferedByMe ? (

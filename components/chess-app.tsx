@@ -1,6 +1,7 @@
 "use client";
 
 import React, { type FC } from "react";
+import { useRouter } from "next/navigation";
 import { useChessGameContext } from "@/context/chess-game-context";
 import { GameSetup } from "./game-setup";
 import { GameLayout } from "./game-layout";
@@ -32,9 +33,12 @@ export const ChessApp: FC = () => {
     isBlackTimeLow,
     logs,
     game,
+    gameResult,
   } = useChessGameContext();
   const { toast } = useToast();
   const deliveredLogIds = React.useRef<Set<string>>(new Set());
+  const router = useRouter();
+  const hasQueuedRedirect = React.useRef(false);
 
   const shouldNotify = React.useCallback((message: string | undefined) => {
     if (!message) return false;
@@ -67,6 +71,18 @@ export const ChessApp: FC = () => {
     });
   }, [logs, toast, shouldNotify]);
   const currentTurn = game?.turn?.() === "w" ? "white" : "black";
+
+  React.useEffect(() => {
+    if (isGameActive) {
+      hasQueuedRedirect.current = false;
+      return;
+    }
+
+    if (gameResult && !hasQueuedRedirect.current) {
+      hasQueuedRedirect.current = true;
+      router.replace("/player");
+    }
+  }, [isGameActive, gameResult, router]);
 
   // Look up resolved Player objects from cache; fall back to id if not resolved yet
   // Add defensive checks for undefined players object

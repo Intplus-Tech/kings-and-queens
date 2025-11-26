@@ -248,14 +248,6 @@ export function UpcomingMatchCard({
 
   const statusPanel = (
     <div className="w-full rounded-2xl border border-white/20 bg-black/40 p-4 text-left sm:w-64">
-      {resolvedGameId && (
-        <p className="text-[11px] uppercase tracking-[0.4em] text-gray-300">
-          Match ID
-        </p>
-      )}
-      {resolvedGameId && (
-        <p className="font-mono text-sm text-white">{resolvedGameId}</p>
-      )}
       <div className="mt-3 text-xs text-gray-200">
         {isMatchLive ? (
           resolvedGameId ? (

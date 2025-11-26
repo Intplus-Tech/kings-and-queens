@@ -235,7 +235,7 @@ export const GameSetup: FC<GameSetupProps> = ({
           {(["white", "black"] as const).map((color) => renderSeat(color))}
         </div>
 
-        <div className="space-y-4 rounded-3xl border border-gray-700/60 bg-black/40 p-5">
+        {/* <div className="space-y-4 rounded-3xl border border-gray-700/60 bg-black/40 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <Label className="text-xs uppercase tracking-[0.3em] text-gray-400">
@@ -293,7 +293,7 @@ export const GameSetup: FC<GameSetupProps> = ({
               You are currently assigned to the {myColor} pieces.
             </p>
           )}
-        </div>
+        </div> */}
       </CardContent>
     </Card>
   );
