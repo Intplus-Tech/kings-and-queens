@@ -16,7 +16,7 @@ export function LeagueTable({ players, tournamentName }: LeagueTableProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <Card className="bg-[#00000033] p-2 flex h-[300px] min-h-[320px] md:min-h-[80vh] flex-col overflow-hidden">
+    <Card className="bg-[#00000033] p-2 flex md:h-[300px] sm:min-h-[320px] md:min-h-[80vh] flex-col overflow-hidden">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 p-4 rounded-md bg-secondary">
         <CardTitle className="text-white flex items-center gap-2 text-lg">
           <p className="text-2xl"> 🏆 </p>
