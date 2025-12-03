@@ -64,9 +64,9 @@ const classOptions = [
   { value: "jss1", label: "JSS 1" },
   { value: "jss2", label: "JSS 2" },
   { value: "jss3", label: "JSS 3" },
-  { value: "ss1", label: "SS 1" },
-  { value: "ss2", label: "SS 2" },
-  { value: "ss3", label: "SS 3" },
+  { value: "ss1", label: "SSS 1" },
+  { value: "ss2", label: "SSS 2" },
+  { value: "ss3", label: "SSS 3" },
 ];
 
 export default function AddPlayerModal() {
@@ -118,7 +118,7 @@ export default function AddPlayerModal() {
         </DialogHeader>
         <div className="flex flex-col gap-6">
           {/* Header Section */}
-          <div className="rounded-2xl border border-gray-700/50 bg-black/30 p-5 sm:p-6">
+          {/* <div className="rounded-2xl border border-gray-700/50 bg-black/30 p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
               <img
                 src="/chess-pieces-2.png"
@@ -166,7 +166,7 @@ export default function AddPlayerModal() {
                 <span>Progress · {Math.round(progressPercentage)}%</span>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Form */}
           <Form {...form}>

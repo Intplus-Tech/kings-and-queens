@@ -145,7 +145,7 @@ const TeamManagementTable = ({
         <Table className="w-full h-full">
           <TableHeader className="text-center">
             <TableRow className="border border-gray-700 ">
-              <TableHead className="text-white">Player ID</TableHead>
+              {/* <TableHead className="text-white">Player ID</TableHead> */}
               <TableHead className="text-white">Name</TableHead>
               <TableHead className="text-white">Alias</TableHead>
               <TableHead className="text-white">Date of Birth</TableHead>
@@ -160,7 +160,7 @@ const TeamManagementTable = ({
           <TableBody className="bg-[#00000066] text-[#A3ABB2]">
             {localPlayers.map((item) => (
               <TableRow key={item._id} className="h-14 border border-gray-600 ">
-                <TableCell>{item._id}</TableCell>
+                {/* <TableCell>{item._id}</TableCell> */}
                 <TableCell>{item.name}</TableCell>
                 <TableCell>{item.alias}</TableCell>
                 <TableCell>{item.dob}</TableCell>
