@@ -42,7 +42,7 @@ interface PlayProps {
 
 const navLinks = [
   { name: "Home", href: "/player", icon: Home },
-  { name: "Play", href: "/player/play", icon: Gamepad2 },
+  // { name: "Play", href: "/player/play", icon: Gamepad2 },
   { name: "Points", href: "/player/points", icon: Trophy },
   { name: "Learn", href: "/player/learn", icon: GraduationCap },
 ];
