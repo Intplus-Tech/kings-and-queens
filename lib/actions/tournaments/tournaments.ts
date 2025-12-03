@@ -30,7 +30,7 @@ export async function getTournamentsAction(): Promise<TournamentsResponse> {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
-      next: { revalidate: 300 },
+      // next: { revalidate: 300 },
     })
 
     let result: any = undefined
@@ -190,7 +190,7 @@ export async function getTournamentAction(
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        next: { revalidate: 60 },
+        // next: { revalidate: 60 },
       }
     )
 
