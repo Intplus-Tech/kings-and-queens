@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
 
 interface AddPlayerResponse {
@@ -13,6 +14,7 @@ interface AddPlayerResponse {
 export async function addPlayerAction(values: {
   fullName: string
   alias: string
+  email: string
   dob: string
   playerClass: string
   phone: string
@@ -40,6 +42,7 @@ export async function addPlayerAction(values: {
       body: JSON.stringify({
         alias: values.alias,
         name: values.fullName,
+        email: values.email,
         dob: values.dob,
         playerClass: values.playerClass,
         phoneNumber: values.phone,
@@ -57,9 +60,11 @@ export async function addPlayerAction(values: {
         message: result.message || "Failed to add player",
         error: result.error || result.message,
       }
-    }
 
-    console.log("Player added successfully:", result.data)
+    }
+    revalidatePath("/coordinator/teams");
+
+    // console.log("Player added successfully:", result.data)
 
     return {
       success: true,
