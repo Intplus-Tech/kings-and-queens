@@ -2,8 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Playfair+Display:wght@600&family=Montserrat:wght@500;600&display=swap");
+
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Montserrat", Arial, Helvetica, sans-serif;
 }
 
 @layer utilities {
@@ -76,6 +78,70 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.hero-display {
+  font-family: "Cinzel", serif;
+  letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+  font-family: "Playfair Display", serif;
+}
+
+.golden-btn {
+  position: relative;
+  border: none;
+  color: #f8f5ef;
+  background: linear-gradient(135deg, #f4c159 0%, #b86d1f 50%, #f7d278 100%);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 191, 94, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 6px rgba(89, 45, 7, 0.55);
+  border-radius: 14px;
+  letter-spacing: 0.02em;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  isolation: isolate;
+}
+
+.golden-btn::before,
+.golden-btn::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 16px;
+  z-index: -1;
+}
+
+.golden-btn::before {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 214, 102, 0.45),
+    transparent 55%
+  );
+  filter: blur(6px);
+}
+
+.golden-btn::after {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 210, 120, 0.9),
+    rgba(255, 165, 58, 0.75)
+  );
+  opacity: 0.25;
+}
+
+.golden-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 214, 120, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -2px 8px rgba(89, 45, 7, 0.65);
+}
+
+.golden-btn:active {
+  transform: translateY(0px) scale(0.99);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 191, 94, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 6px rgba(89, 45, 7, 0.7);
 }
 
 .chess-ui * {
