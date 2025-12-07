@@ -7,13 +7,18 @@ import React, {
   type ReactNode,
   type FC,
 } from "react";
-import type { Square, Chess } from "chess.js";
+import { Chess } from "chess.js";
+import type { Square } from "chess.js";
 import { useChessGame } from "@/hooks/use-chess-game";
 import { useGameLogs } from "@/hooks/use-game-logs";
 import { useCapturedPieces } from "@/hooks/use-captured-pieces";
 import { useGameTimer } from "@/hooks/use-game-timer";
 import { useSocket } from "@/hooks/use-socket";
-import { SOCKET_EVENTS, LS_KEY_GAME_ID } from "@/lib/chess-constants";
+import {
+  SOCKET_EVENTS,
+  LS_KEY_GAME_ID,
+  LS_KEY_LAST_GAME_STATE,
+} from "@/lib/chess-constants";
 import type {
   GameState,
   PlayerInfo,
@@ -21,7 +26,12 @@ import type {
   LogEntry,
   DrawOfferState,
 } from "@/lib/chess-types";
-import { getLocalStorageItem, setLocalStorageItem } from "@/lib/chess-utils";
+import {
+  getLocalStorageItem,
+  setLocalStorageItem,
+  readJson,
+  writeJson,
+} from "@/lib/chess-utils";
 import { Player } from "@/types/player";
 
 // ====================================================================
@@ -43,6 +53,7 @@ interface ChessGameContextValue {
   playersInfo: Record<string, Player | null>;
   drawOffer: DrawOfferState;
   drawResponse: "accepted" | "rejected" | null;
+  isMovePending: boolean;
 
   // Timers (in ms)
   whiteTime: number;
@@ -108,6 +119,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 }) => {
   // --- Game Logic Hooks ---
   const chessGame = useChessGame();
+  const { loadGameFromFen, applyServerMove } = chessGame;
 
   // ====================================================================
   // Fetch player info on client
@@ -189,6 +201,8 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   const [playersInfo, setPlayersInfo] = React.useState<
     Record<string, Player | null>
   >({});
+  const [isMovePending, setIsMovePending] = React.useState(false);
+  const pendingMoveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isGameActiveRef = React.useRef(isGameActive);
 
   React.useEffect(() => {
@@ -206,18 +220,30 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     []
   );
 
-  const reflectTerminalServerError = React.useCallback((message: string) => {
-    setGameResult(message);
-    setGameWinner(null);
-    setIsGameActive(false);
-    setDrawOffer({
-      isPending: false,
-      isOfferedByMe: false,
-      offererPlayerId: null,
-      offeredAt: null,
-    });
-    setDrawResponse(null);
+  const clearPendingMove = useCallback(() => {
+    setIsMovePending(false);
+    if (pendingMoveTimeoutRef.current) {
+      clearTimeout(pendingMoveTimeoutRef.current);
+      pendingMoveTimeoutRef.current = null;
+    }
   }, []);
+
+  const reflectTerminalServerError = React.useCallback(
+    (message: string) => {
+      setGameResult(message);
+      setGameWinner(null);
+      setIsGameActive(false);
+      clearPendingMove();
+      setDrawOffer({
+        isPending: false,
+        isOfferedByMe: false,
+        offererPlayerId: null,
+        offeredAt: null,
+      });
+      setDrawResponse(null);
+    },
+    [clearPendingMove]
+  );
 
   // --- Utility Hooks ---
   const { logs, addLog, clearLogs } = useGameLogs();
@@ -244,6 +270,28 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     setGameIdSource("auto");
     setGameIdState(initialGameId);
   }, [initialGameId]);
+
+  // Soft-hydrate from the last stored snapshot so the board + history are not blank on refresh
+  React.useEffect(() => {
+    const saved = readJson<{
+      gameId: string;
+      fen: string;
+      moveHistory?: string[];
+    }>(LS_KEY_LAST_GAME_STATE);
+    if (!saved) return;
+
+    if (!gameId && saved.gameId) {
+      setGameIdState(saved.gameId);
+    }
+
+    if (saved.fen) {
+      try {
+        loadGameFromFen(saved.fen, saved.moveHistory);
+      } catch (err) {
+        console.warn("Failed to hydrate saved chess state", err);
+      }
+    }
+  }, [gameId, loadGameFromFen]);
 
   React.useEffect(() => {
     if (!isConnected) {
@@ -284,7 +332,9 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   const updateGameState = useCallback(
     (newState: Partial<GameState>) => {
       if (newState.fen) {
-        chessGame.loadGameFromFen(newState.fen);
+        const historyToUse = newState.moveHistory ?? chessGame.moveHistory;
+        loadGameFromFen(newState.fen, historyToUse);
+        clearPendingMove();
       }
       if (newState.moveHistory) {
         // moveHistory is read-only, synced from fen
@@ -317,7 +367,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
         setDrawOffer(newState.drawOffer);
       }
     },
-    [chessGame, whiteTime, blackTime, updateTimersFromServer]
+    [
+      loadGameFromFen,
+      whiteTime,
+      blackTime,
+      updateTimersFromServer,
+      clearPendingMove,
+    ]
   );
 
   // ====================================================================
@@ -336,13 +392,24 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
         return false;
       }
 
-      // Check if it's my turn
+      if (isMovePending) {
+        addLog("Waiting for previous move confirmation", "#ffaa00");
+        return false;
+      }
+
+      // Guard turn order
       const turn = chessGame.game.turn();
       if (
         (turn === "w" && myColor !== "white") ||
         (turn === "b" && myColor !== "black")
       ) {
         addLog("It's not your turn", "red");
+        return false;
+      }
+
+      // Validate locally before mutating state
+      if (!chessGame.isMoveLegal(from, to, promotion)) {
+        addLog("Illegal move", "red");
         return false;
       }
 
@@ -355,7 +422,19 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       // Stop timer when move is made
       stopTimer();
 
-      // Emit to server
+      // Prevent double-sends until server confirms
+      setIsMovePending(true);
+      if (pendingMoveTimeoutRef.current) {
+        clearTimeout(pendingMoveTimeoutRef.current);
+      }
+      pendingMoveTimeoutRef.current = setTimeout(() => {
+        setIsMovePending(false);
+        addLog(
+          "Move confirmation delayed. Awaiting server state...",
+          "#ffaa00"
+        );
+      }, 8000);
+
       addLog(`Sent move: ${move.from}-${move.to}`, "#dddddd");
       socket?.emit(SOCKET_EVENTS.C2S_MAKE_MOVE, {
         gameId,
@@ -376,6 +455,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       socket,
       stopTimer,
       drawOffer.isPending,
+      isMovePending,
     ]
   );
 
@@ -424,10 +504,14 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
         return;
       }
 
+      clearPendingMove();
+      setGameIdSource("manual");
+      setGameIdState(id);
+
       socket?.emit(SOCKET_EVENTS.C2S_JOIN_GAME, { gameId: id });
       addLog(`Sent join game: ${id}`, "#ffaa00");
     },
-    [isConnected, authUserId, socket, addLog]
+    [isConnected, authUserId, socket, addLog, clearPendingMove]
   );
 
   React.useEffect(() => {
@@ -465,6 +549,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       setGameResult("Connection lost. Please refresh.");
       setGameWinner(null);
       setIsGameActive(false);
+      clearPendingMove();
       // Reset game state on disconnect to prevent stale data
       setPlayers({ white: null, black: null });
       setMyColor(null);
@@ -490,7 +575,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleError);
     };
-  }, [socket, token, addLog]);
+  }, [socket, token, addLog, clearPendingMove]);
 
   // Auth listeners
   React.useEffect(() => {
@@ -517,6 +602,8 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
         console.error("Context: Server error:", message);
       }
 
+      clearPendingMove();
+
       addLog(`Server Error: ${message}`, "#ff4444");
     };
 
@@ -534,7 +621,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       socket.off(SOCKET_EVENTS.S2C_ERROR, handleError);
       socket.off(SOCKET_EVENTS.SOCKET_ERROR, handleSocketError);
     };
-  }, [socket, addLog, gracefulServerErrorPatterns, reflectTerminalServerError]);
+  }, [
+    socket,
+    addLog,
+    gracefulServerErrorPatterns,
+    reflectTerminalServerError,
+    clearPendingMove,
+  ]);
 
   // Game logic listeners
   React.useEffect(() => {
@@ -551,7 +644,8 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     }) => {
       console.log("Context: Game state received:", d.yourColor);
       addLog(`Joined game. You are ${d.yourColor}`, "#00ccff");
-      chessGame.loadGameFromFen(d.fen);
+      clearPendingMove();
+      loadGameFromFen(d.fen, chessGame.moveHistory);
       setPlayers(d.players);
       void resolveAndCachePlayers(d.players);
       setMyColor(d.yourColor);
@@ -585,10 +679,34 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       newFen: string;
       whiteTime: number;
       blackTime: number;
+      promotion?: string;
     }) => {
       console.log("Context: Move received:", d.from, d.to);
       addLog(`Move: ${d.from}-${d.to}`, "#dddddd");
-      chessGame.loadGameFromFen(d.newFen);
+      clearPendingMove();
+      const applied = applyServerMove(
+        d.from as Square,
+        d.to as Square,
+        d.promotion
+      );
+
+      if (!applied) {
+        // Fallback: derive SAN manually before loading FEN so history stays consistent
+        try {
+          const temp = new Chess(chessGame.fen);
+          const move = temp.move({
+            from: d.from as Square,
+            to: d.to as Square,
+            promotion: d.promotion || "q",
+          });
+          const history = move
+            ? [...chessGame.moveHistory, move.san]
+            : chessGame.moveHistory;
+          loadGameFromFen(d.newFen, history);
+        } catch (err) {
+          loadGameFromFen(d.newFen, chessGame.moveHistory);
+        }
+      }
       updateTimersFromServer(d.whiteTime, d.blackTime);
       setDrawOffer({
         isPending: false,
@@ -625,6 +743,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
       console.log("Context: Game over:", reason);
       addLog(`Game Over: ${reason}`, "#ff4444");
+      clearPendingMove();
       setGameResult(reason);
       setGameWinner(d.winner ?? null);
       setIsGameActive(false);
@@ -692,7 +811,16 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       socket.off(SOCKET_EVENTS.S2C_DRAW_ACCEPTED, handleDrawAccepted);
       socket.off(SOCKET_EVENTS.S2C_DRAW_REJECTED, handleDrawRejected);
     };
-  }, [socket, chessGame, addLog, updateTimersFromServer]);
+  }, [
+    socket,
+    addLog,
+    updateTimersFromServer,
+    clearPendingMove,
+    resolveAndCachePlayers,
+    loadGameFromFen,
+    applyServerMove,
+    chessGame.fen,
+  ]);
 
   // Check detection
   const lastCheckFenRef = React.useRef<string | null>(null);
@@ -714,7 +842,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       addLog("You are in check!", "#ffcc00");
       lastCheckFenRef.current = chessGame.fen;
     }
-  }, [chessGame.fen, myColor, chessGame, addLog]);
+  }, [
+    chessGame.fen,
+    myColor,
+    chessGame.isInCheck,
+    chessGame.getCurrentTurn,
+    addLog,
+  ]);
 
   // Resolve player info whenever players state updates
   React.useEffect(() => {
@@ -727,6 +861,16 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   React.useEffect(() => {
     setLocalStorageItem(LS_KEY_GAME_ID, gameId);
   }, [gameId]);
+
+  // Persist last known board + history for quick reloads
+  React.useEffect(() => {
+    if (!gameId) return;
+    writeJson(LS_KEY_LAST_GAME_STATE, {
+      gameId,
+      fen: chessGame.fen,
+      moveHistory: chessGame.moveHistory,
+    });
+  }, [gameId, chessGame.fen, chessGame.moveHistory]);
 
   // ====================================================================
   // Context Value
@@ -747,6 +891,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     playersInfo,
     drawOffer,
     drawResponse,
+    isMovePending,
 
     // Timers
     whiteTime,

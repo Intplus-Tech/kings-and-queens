@@ -10,25 +10,26 @@ import { useChessGameContext } from "@/context/chess-game-context";
  * Handles move dropping, board orientation, and check highlighting
  */
 export const GameBoard: FC = () => {
-  const { fen, myColor, isGameActive, gameResult, boardOrientation, makeMove } =
-    useChessGameContext();
-
-  const { game } = useChessGameContext() as any; // Access game for check detection
-
-  // Calculate current turn
-  const getCurrentTurn = (): "white" | "black" => {
-    const board = (global as any)?.Chess?.prototype?.turn || "w";
-    return board === "w" ? "white" : "black";
-  };
+  const {
+    fen,
+    myColor,
+    isGameActive,
+    gameResult,
+    boardOrientation,
+    makeMove,
+    game,
+    isMovePending,
+  } = useChessGameContext();
 
   const isMyTurn =
-    (myColor === "white" && fen.includes(" w ")) ||
-    (myColor === "black" && fen.includes(" b "));
+    !!myColor &&
+    game?.turn?.() === (myColor === "white" ? "w" : "b") &&
+    !isMovePending;
 
   // Handle piece drop
   const onDrop = (sourceSquare: Square, targetSquare: Square): boolean => {
     if (!isGameActive || !myColor || gameResult) return false;
-    if (!isMyTurn) return false;
+    if (!isMyTurn || isMovePending) return false;
 
     const success = makeMove(sourceSquare, targetSquare);
     return success;
@@ -103,7 +104,7 @@ export const GameBoard: FC = () => {
     } catch (e) {
       return base;
     }
-  }, [fen]);
+  }, [fen, game]);
 
   const { squareStyles, kingSquare, inCheck, inCheckmate } = checkInfo;
 
@@ -141,7 +142,7 @@ export const GameBoard: FC = () => {
         position={fen}
         onPieceDrop={onDrop}
         boardOrientation={boardOrientation}
-        arePiecesDraggable={!gameResult && isMyTurn}
+        arePiecesDraggable={!gameResult && isMyTurn && isGameActive}
         customSquareStyles={squareStyles}
         customBoardStyle={{
           borderRadius: "0px",

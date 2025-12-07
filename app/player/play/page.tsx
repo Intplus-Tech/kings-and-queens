@@ -4,17 +4,20 @@ import { ChessGameProvider } from "@/context/chess-game-context";
 import { ChessApp } from "@/components/chess-app";
 
 type PlayPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     gameId?: string;
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 };
 
 const PlayPage = async ({ searchParams }: PlayPageProps) => {
   const cookieStore = await cookies();
   const token = cookieStore.get("k_n_q_auth_token")?.value || null;
+  const resolvedSearchParams = (await searchParams) ?? {};
   const gameIdFromSearch =
-    typeof searchParams?.gameId === "string" ? searchParams.gameId : undefined;
+    typeof resolvedSearchParams?.gameId === "string"
+      ? resolvedSearchParams.gameId
+      : undefined;
 
   return (
     <ChessGameProvider

@@ -10,10 +10,12 @@ import { LS_KEY_LOGS, MAX_LOG_ENTRIES } from "@/lib/chess-constants"
  * Persists logs to localStorage and handles auto-cleanup
  */
 export const useGameLogs = () => {
-  const [logs, setLogs] = useState<LogEntry[]>(() => {
-    const saved = getLocalStorageItem(LS_KEY_LOGS)
-    return saved ? (JSON.parse(saved) as LogEntry[]) : []
-  })
+  // Start with a clean slate and wipe any persisted logs on mount
+  const [logs, setLogs] = useState<LogEntry[]>([])
+
+  useEffect(() => {
+    setLocalStorageItem(LS_KEY_LOGS, JSON.stringify([]))
+  }, [])
 
   // Add a new log entry
   const addLog = useCallback((msg: string, color = "#00ff88") => {

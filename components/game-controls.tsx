@@ -36,12 +36,14 @@ export const GameControls: FC = () => {
     rejectDraw,
     game,
     addLog,
+    isMovePending,
   } = useChessGameContext();
 
   // Get current turn from context
   const isMyTurn =
     (myColor === "white" && game?.turn() === "w") ||
     (myColor === "black" && game?.turn() === "b");
+  const waitingForServer = isMovePending && isMyTurn;
 
   const handleExportPgn = () => {
     const pgn = game?.pgn?.() || "";
@@ -100,11 +102,15 @@ export const GameControls: FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={!isMyTurn || drawOffer.isPending}
+                      disabled={
+                        !isMyTurn || drawOffer.isPending || waitingForServer
+                      }
                       className="bg-[#2a241f] border-[#45382f] text-[#e7d8c1] hover:bg-[#3a2f27] disabled:opacity-40 w-full"
                     >
                       <Handshake className="mr-2 h-4 w-4" />
-                      {drawOffer.isPending && drawOffer.isOfferedByMe
+                      {waitingForServer
+                        ? "Waiting..."
+                        : drawOffer.isPending && drawOffer.isOfferedByMe
                         ? "Draw Pending..."
                         : "Offer Draw"}
                     </Button>

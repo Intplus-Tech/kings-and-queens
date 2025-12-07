@@ -8,7 +8,6 @@ import { GameBoard } from "./game-board";
 import { PlayerTimer } from "./player-timer";
 import { GameInfoSidebar } from "./game-info-sidebar";
 import { GameControls } from "./game-controls";
-import { useToast } from "@/hooks/use-toast";
 import { GameResultOverlay } from "./game-result-overlay";
 
 /**
@@ -31,55 +30,9 @@ export const ChessApp: FC = () => {
     blackTime,
     isWhiteTimeLow,
     isBlackTimeLow,
-    logs,
     game,
     gameResult,
   } = useChessGameContext();
-  const { toast } = useToast();
-  const deliveredLogIds = React.useRef<Set<string>>(new Set());
-
-  const shouldNotify = React.useCallback((message: string | undefined) => {
-    if (!message) return false;
-
-    const suppressedPatterns = [
-      /cannot join this game because it is already completed/i,
-      /already completed/i,
-      /no active game/i,
-      /game not found/i,
-    ];
-
-    if (suppressedPatterns.some((pattern) => pattern.test(message))) {
-      return false;
-    }
-
-    const patterns = [
-      /game over/i,
-      /draw offer accepted/i,
-      /match ended/i,
-      /won by/i,
-      /timeout/i,
-    ];
-    return patterns.some((pattern) => pattern.test(message));
-  }, []);
-
-  React.useEffect(() => {
-    logs.forEach((entry) => {
-      if (!entry?.id || deliveredLogIds.current.has(entry.id)) return;
-      deliveredLogIds.current.add(entry.id);
-      if (!shouldNotify(entry.message)) return;
-      const variant: "default" | "destructive" =
-        entry.color && /(ff4444|ff6666|red|error)/i.test(entry.color)
-          ? "destructive"
-          : "default";
-      toast({
-        title: entry.message,
-        description: entry.timestamp
-          ? new Date(entry.timestamp).toLocaleTimeString()
-          : undefined,
-        variant,
-      });
-    });
-  }, [logs, toast, shouldNotify]);
   const currentTurn = game?.turn?.() === "w" ? "white" : "black";
 
   const shouldShowSetup = !isGameActive && !gameResult;

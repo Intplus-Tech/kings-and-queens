@@ -12,6 +12,28 @@ export const setLocalStorageItem = (key: string, value: string): void => {
   localStorage.setItem(key, value)
 }
 
+// Read a JSON blob safely from localStorage
+export const readJson = <T>(key: string): T | null => {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : null
+  } catch (err) {
+    console.warn("Failed to parse localStorage key", key, err)
+    return null
+  }
+}
+
+// Write a JSON blob safely to localStorage
+export const writeJson = (key: string, value: unknown): void => {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (err) {
+    console.warn("Failed to write localStorage key", key, err)
+  }
+}
+
 // Format milliseconds to MM:SS format
 export const formatTime = (ms: number): string => {
   const safeMs = Math.max(0, ms)

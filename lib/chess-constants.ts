@@ -63,6 +63,7 @@ export const TIME_CONTROLS: TimeControl[] = [
 // LocalStorage keys
 export const LS_KEY_GAME_ID = "multiplayer_chess_gameId"
 export const LS_KEY_LOGS = "multiplayer_chess_logs"
+export const LS_KEY_LAST_GAME_STATE = "multiplayer_chess_state"
 
 // Server configuration
 export const SERVER_URL = "https://knq-be.onrender.com/"
