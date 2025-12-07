@@ -51,13 +51,12 @@ export const SOCKET_EVENTS = {
 export type TimeControl = {
   name: string
   time: number // in milliseconds
-  increment: number // in milliseconds
+  increment: number // in milliseconds (always zero while increments are disabled)
 }
 
 export const TIME_CONTROLS: TimeControl[] = [
   { name: "Bullet (1+0)", time: 60 * 1000, increment: 0 * 1000 },
   { name: "Blitz (3+0)", time: 180 * 1000, increment: 0 * 1000 },
-  { name: "Blitz (3+2)", time: 180 * 1000, increment: 2 * 1000 },
   { name: "Rapid (10+0)", time: 600 * 1000, increment: 0 * 1000 },
 ]
 

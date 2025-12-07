@@ -33,6 +33,7 @@ interface ChessGameContextValue {
   fen: string;
   moveHistory: string[];
   gameResult: string | null;
+  gameWinner: "white" | "black" | null;
   isGameActive: boolean;
 
   // Multiplayer State
@@ -169,6 +170,9 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   });
   const [isGameActive, setIsGameActive] = React.useState(false);
   const [gameResult, setGameResult] = React.useState<string | null>(null);
+  const [gameWinner, setGameWinner] = React.useState<"white" | "black" | null>(
+    null
+  );
   const [drawOffer, setDrawOffer] = React.useState<DrawOfferState>({
     isPending: false,
     isOfferedByMe: false,
@@ -185,6 +189,35 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   const [playersInfo, setPlayersInfo] = React.useState<
     Record<string, Player | null>
   >({});
+  const isGameActiveRef = React.useRef(isGameActive);
+
+  React.useEffect(() => {
+    isGameActiveRef.current = isGameActive;
+  }, [isGameActive]);
+
+  const gracefulServerErrorPatterns = React.useMemo(
+    () => [
+      /already completed/i,
+      /cannot join/i,
+      /already been completed/i,
+      /no active game/i,
+      /not found/i,
+    ],
+    []
+  );
+
+  const reflectTerminalServerError = React.useCallback((message: string) => {
+    setGameResult(message);
+    setGameWinner(null);
+    setIsGameActive(false);
+    setDrawOffer({
+      isPending: false,
+      isOfferedByMe: false,
+      offererPlayerId: null,
+      offeredAt: null,
+    });
+    setDrawResponse(null);
+  }, []);
 
   // --- Utility Hooks ---
   const { logs, addLog, clearLogs } = useGameLogs();
@@ -276,6 +309,9 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       }
       if (newState.gameResult !== undefined) {
         setGameResult(newState.gameResult);
+      }
+      if (newState.gameWinner !== undefined) {
+        setGameWinner(newState.gameWinner ?? null);
       }
       if (newState.drawOffer) {
         setDrawOffer(newState.drawOffer);
@@ -409,24 +445,25 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
   React.useEffect(() => {
     if (!socket) {
-      console.log("[v0] Context: Socket not ready");
+      console.log("Context: Socket not ready");
       return;
     }
 
-    console.log("[v0] Context: Setting up socket connection listeners");
+    console.log("Context: Setting up socket connection listeners");
 
     const handleConnect = () => {
-      console.log("[v0] Context: Socket connected:", socket.id);
+      console.log("Context: Socket connected:", socket.id);
       if (token) {
-        console.log("[v0] Context: Authenticating with token");
+        console.log("Context: Authenticating with token");
         socket.emit(SOCKET_EVENTS.C2S_AUTHENTICATE, { token });
       }
     };
 
     const handleDisconnect = () => {
-      console.log("[v0] Context: Socket disconnected");
+      console.log("Context: Socket disconnected");
       addLog("Disconnected", "red");
       setGameResult("Connection lost. Please refresh.");
+      setGameWinner(null);
       setIsGameActive(false);
       // Reset game state on disconnect to prevent stale data
       setPlayers({ white: null, black: null });
@@ -434,13 +471,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     };
 
     const handleError = (error: any) => {
-      console.error("[v0] Context: Socket error:", error);
+      console.error("Context: Socket error:", error);
       addLog(`Connection error: ${error?.message || "Unknown error"}`, "red");
     };
 
     // If socket is already connected, handle immediately
     if (socket.connected) {
-      console.log("[v0] Context: Socket already connected, authenticating now");
+      console.log("Context: Socket already connected, authenticating now");
       handleConnect();
     }
 
@@ -459,21 +496,32 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   React.useEffect(() => {
     if (!socket) return;
 
-    console.log("[v0] Context: Setting up auth listeners");
+    console.log("Context: Setting up auth listeners");
 
     const handleAuthSuccess = (d: { message: string; userId: string }) => {
-      console.log("[v0] Context: Auth success:", d.userId);
+      console.log("Context: Auth success:", d.userId);
       addLog(`Authenticated as ${d.userId}`, "#00ff88");
       setAuthUserId(d.userId);
     };
 
     const handleError = (d: { message: string }) => {
-      console.error("[v0] Context: Server error:", d.message);
-      addLog(`Server Error: ${d.message}`, "#ff4444");
+      const message = d?.message ?? "Unknown error";
+      const isGraceful = gracefulServerErrorPatterns.some((pattern) =>
+        pattern.test(message)
+      );
+
+      if (isGraceful) {
+        console.warn("Context: Server notice:", message);
+        reflectTerminalServerError(message);
+      } else {
+        console.error("Context: Server error:", message);
+      }
+
+      addLog(`Server Error: ${message}`, "#ff4444");
     };
 
     const handleSocketError = (d: { context: string; message: string }) => {
-      console.error("[v0] Context: Socket error:", d);
+      console.error("Context: Socket error:", d);
       addLog(`Socket Error [${d.context}]: ${d.message}`, "#ff4444");
     };
 
@@ -486,13 +534,13 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       socket.off(SOCKET_EVENTS.S2C_ERROR, handleError);
       socket.off(SOCKET_EVENTS.SOCKET_ERROR, handleSocketError);
     };
-  }, [socket, addLog]);
+  }, [socket, addLog, gracefulServerErrorPatterns, reflectTerminalServerError]);
 
   // Game logic listeners
   React.useEffect(() => {
     if (!socket) return;
 
-    console.log("[v0] Context: Setting up game logic listeners");
+    console.log("Context: Setting up game logic listeners");
 
     const handleGameState = (d: {
       fen: string;
@@ -501,7 +549,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       whiteTime: number;
       blackTime: number;
     }) => {
-      console.log("[v0] Context: Game state received:", d.yourColor);
+      console.log("Context: Game state received:", d.yourColor);
       addLog(`Joined game. You are ${d.yourColor}`, "#00ccff");
       chessGame.loadGameFromFen(d.fen);
       setPlayers(d.players);
@@ -511,6 +559,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       updateTimersFromServer(d.whiteTime, d.blackTime);
       setIsGameActive(true);
       setGameResult(null);
+      setGameWinner(null);
       setDrawOffer({
         isPending: false,
         isOfferedByMe: false,
@@ -524,7 +573,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       message: string;
       players: { white: string | null; black: string | null };
     }) => {
-      console.log("[v0] Context: Player joined:", d.message);
+      console.log("Context: Player joined:", d.message);
       addLog(`${d.message}`, "#ffaa00");
       setPlayers(d.players);
       void resolveAndCachePlayers(d.players);
@@ -537,7 +586,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       whiteTime: number;
       blackTime: number;
     }) => {
-      console.log("[v0] Context: Move received:", d.from, d.to);
+      console.log("Context: Move received:", d.from, d.to);
       addLog(`Move: ${d.from}-${d.to}`, "#dddddd");
       chessGame.loadGameFromFen(d.newFen);
       updateTimersFromServer(d.whiteTime, d.blackTime);
@@ -559,21 +608,30 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
 
       if (isSoftCheck) {
         console.log(
-          "[v0] Context: Check warning received, keeping game active:",
+          "Context: Check warning received, keeping game active:",
           reason
         );
         addLog(`Warning: ${reason}`, "#ffcc00");
         return;
       }
 
-      console.log("[v0] Context: Game over:", reason);
+      if (!isGameActiveRef.current) {
+        console.log(
+          "Context: Game over received but no active game, suppressing toast/log:",
+          reason
+        );
+        return;
+      }
+
+      console.log("Context: Game over:", reason);
       addLog(`Game Over: ${reason}`, "#ff4444");
       setGameResult(reason);
+      setGameWinner(d.winner ?? null);
       setIsGameActive(false);
     };
 
     const handleDrawOffered = (d: any) => {
-      console.log("[v0] Context: Draw offered from:", d);
+      console.log("Context: Draw offered from:", d);
 
       // normalize payload: some events may use `fromPlayerId`, others `from`
       const fromPlayerId: string | null = d?.fromPlayerId ?? d?.from ?? null;
@@ -591,7 +649,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     };
 
     const handleDrawAccepted = (d: any) => {
-      console.log("[v0] Context: Draw accepted from:", d);
+      console.log("Context: Draw accepted from:", d);
       addLog(`Draw offer accepted! Game drawn.`, "#00ff88");
       setDrawOffer({
         isPending: false,
@@ -601,11 +659,12 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
       });
       setDrawResponse("accepted");
       setGameResult("Draw by agreement");
+      setGameWinner(null);
       setIsGameActive(false);
     };
 
     const handleDrawRejected = (d: any) => {
-      console.log("[v0] Context: Draw rejected from:", d);
+      console.log("Context: Draw rejected from:", d);
       addLog(`Draw offer rejected by opponent`, "#ff6666");
       setDrawOffer({
         isPending: false,
@@ -678,6 +737,7 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     fen: chessGame.fen,
     moveHistory: chessGame.moveHistory,
     gameResult,
+    gameWinner,
     isGameActive,
 
     // Multiplayer State

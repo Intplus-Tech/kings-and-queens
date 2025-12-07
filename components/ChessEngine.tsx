@@ -105,15 +105,15 @@ const SERVER_URL = "https://knq-be.onrender.com/";
 export type TimeControl = {
   name: string;
   time: number; // Time in *milliseconds* for the client
-  increment: number; // Increment in *milliseconds* for the client
+  increment: number; // Increment in *milliseconds* (always 0 while disabled)
 };
 
 // This array is no longer used by the GameSetup component.
 export const TIME_CONTROLS: TimeControl[] = [
   { name: "Bullet (1+0)", time: 60 * 1000, increment: 0 * 1000 },
   { name: "Blitz (3+0)", time: 180 * 1000, increment: 0 * 1000 },
-  { name: "Blitz (3+2)", time: 180 * 1000, increment: 2 * 1000 },
   { name: "Rapid (10+0)", time: 600 * 1000, increment: 0 * 1000 },
+  // Increments are disabled for all time controls
 ];
 
 // --- HELPER FUNCTIONS ---

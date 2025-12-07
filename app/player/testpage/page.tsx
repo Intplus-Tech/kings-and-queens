@@ -77,13 +77,12 @@ const SERVER_URL = "https://knq-be.onrender.com/"; // As used in previous exampl
 export type TimeControl = {
   name: string;
   time: number; // Time in *milliseconds* for the server
-  increment: number; // Increment in *milliseconds*
+  increment: number; // Increment in *milliseconds* (always 0 while disabled)
 };
 
 export const TIME_CONTROLS: TimeControl[] = [
   { name: "Bullet (1+0)", time: 60000, increment: 0 },
   { name: "Blitz (3+0)", time: 180000, increment: 0 },
-  { name: "Blitz (3+2)", time: 180000, increment: 2000 },
   { name: "Rapid (10+0)", time: 600000, increment: 0 },
 ];
 

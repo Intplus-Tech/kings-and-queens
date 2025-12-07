@@ -1,7 +1,6 @@
 "use client";
 
 import React, { type FC } from "react";
-import { useRouter } from "next/navigation";
 import { useChessGameContext } from "@/context/chess-game-context";
 import { GameSetup } from "./game-setup";
 import { GameLayout } from "./game-layout";
@@ -10,6 +9,7 @@ import { PlayerTimer } from "./player-timer";
 import { GameInfoSidebar } from "./game-info-sidebar";
 import { GameControls } from "./game-controls";
 import { useToast } from "@/hooks/use-toast";
+import { GameResultOverlay } from "./game-result-overlay";
 
 /**
  * Main chess application orchestrator
@@ -37,11 +37,21 @@ export const ChessApp: FC = () => {
   } = useChessGameContext();
   const { toast } = useToast();
   const deliveredLogIds = React.useRef<Set<string>>(new Set());
-  const router = useRouter();
-  const hasQueuedRedirect = React.useRef(false);
 
   const shouldNotify = React.useCallback((message: string | undefined) => {
     if (!message) return false;
+
+    const suppressedPatterns = [
+      /cannot join this game because it is already completed/i,
+      /already completed/i,
+      /no active game/i,
+      /game not found/i,
+    ];
+
+    if (suppressedPatterns.some((pattern) => pattern.test(message))) {
+      return false;
+    }
+
     const patterns = [
       /game over/i,
       /draw offer accepted/i,
@@ -72,17 +82,7 @@ export const ChessApp: FC = () => {
   }, [logs, toast, shouldNotify]);
   const currentTurn = game?.turn?.() === "w" ? "white" : "black";
 
-  React.useEffect(() => {
-    if (isGameActive) {
-      hasQueuedRedirect.current = false;
-      return;
-    }
-
-    if (gameResult && !hasQueuedRedirect.current) {
-      hasQueuedRedirect.current = true;
-      router.replace("/player");
-    }
-  }, [isGameActive, gameResult, router]);
+  const shouldShowSetup = !isGameActive && !gameResult;
 
   // Look up resolved Player objects from cache; fall back to id if not resolved yet
   // Add defensive checks for undefined players object
@@ -105,7 +105,7 @@ export const ChessApp: FC = () => {
     return rating ? `• ${rating}` : "";
   };
 
-  if (!isGameActive) {
+  if (shouldShowSetup) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-white py-10">
         <GameSetup
@@ -208,10 +208,11 @@ export const ChessApp: FC = () => {
     <section className="bg-[#302E2C]/0">
       <div className="space-y-4">
         <div
-          className="mx-auto w-full"
+          className="relative mx-auto w-full"
           style={{ maxWidth: "min(560px, 90vw)" }}
         >
           <GameBoard />
+          <GameResultOverlay />
         </div>
         <GameControls />
       </div>

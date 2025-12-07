@@ -85,6 +85,7 @@ export type GameState = {
   blackTime: number // in ms
   isGameActive: boolean
   gameResult: string | null
+  gameWinner?: "white" | "black" | null
   drawOffer: DrawOfferState
 }
 
