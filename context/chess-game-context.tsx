@@ -204,10 +204,55 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
   const [isMovePending, setIsMovePending] = React.useState(false);
   const pendingMoveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isGameActiveRef = React.useRef(isGameActive);
+  const soundEnabled = typeof Audio !== "undefined";
+  const soundsRef = React.useRef<
+    Partial<{
+      move: HTMLAudioElement;
+      capture: HTMLAudioElement;
+      check: HTMLAudioElement;
+      gameover: HTMLAudioElement;
+    }>
+  >({});
+  const lastMoveCountRef = React.useRef(0);
+  const initialHistorySyncRef = React.useRef(true);
 
   React.useEffect(() => {
     isGameActiveRef.current = isGameActive;
   }, [isGameActive]);
+
+  // ------------------------------------------------------------------
+  // Sound effects
+  // ------------------------------------------------------------------
+  React.useEffect(() => {
+    if (!soundEnabled) return;
+
+    const captureSound = new Audio(
+      "/audio/mixkit-arcade-score-interface-217.wav"
+    );
+    captureSound.volume = 0.6; // soften capture cue
+
+    soundsRef.current = {
+      move: new Audio("/audio/mixkit-classic-click-1117.wav"),
+      capture: captureSound,
+      check: new Audio(
+        "/audio/mixkit-quick-positive-video-game-notification-interface-265.wav"
+      ),
+      gameover: new Audio(
+        "/audio/mixkit-quick-win-video-game-notification-269.wav"
+      ),
+    };
+  }, [soundEnabled]);
+
+  const playSound = React.useCallback(
+    (type: "move" | "capture" | "check" | "gameover") => {
+      if (!soundEnabled) return;
+      const audio = soundsRef.current?.[type];
+      if (!audio) return;
+      audio.currentTime = 0;
+      void audio.play().catch(() => undefined);
+    },
+    [soundEnabled]
+  );
 
   const gracefulServerErrorPatterns = React.useMemo(
     () => [
@@ -821,6 +866,45 @@ export const ChessGameProvider: FC<ChessGameProviderProps> = ({
     applyServerMove,
     chessGame.fen,
   ]);
+
+  // Play move/capture/check sounds when history grows
+  React.useEffect(() => {
+    if (!soundEnabled) return;
+
+    const moveCount = chessGame.moveHistory.length;
+
+    if (initialHistorySyncRef.current) {
+      initialHistorySyncRef.current = false;
+      lastMoveCountRef.current = moveCount;
+      return;
+    }
+
+    if (moveCount <= lastMoveCountRef.current) {
+      lastMoveCountRef.current = moveCount;
+      return;
+    }
+
+    const san = chessGame.moveHistory[moveCount - 1] || "";
+    const isCapture = san.includes("x");
+    const isCheck = /[+#]/.test(san);
+
+    if (isCheck) {
+      playSound("check");
+    } else if (isCapture) {
+      playSound("capture");
+    } else {
+      playSound("move");
+    }
+
+    lastMoveCountRef.current = moveCount;
+  }, [chessGame.moveHistory, playSound, soundEnabled]);
+
+  React.useEffect(() => {
+    if (!soundEnabled) return;
+    if (!gameResult) return;
+
+    playSound("gameover");
+  }, [gameResult, playSound, soundEnabled]);
 
   // Check detection
   const lastCheckFenRef = React.useRef<string | null>(null);
