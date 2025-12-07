@@ -127,7 +127,7 @@ export default function HomePage() {
       </button>
 
       <div className="relative z-10 flex flex-col min-h-screen px-4 sm:px-6">
-        <header className="w-full max-w-6xl mx-auto pt-6 flex items-center justify-between gap-4">
+        <header className="w-full max-w-[1800px] xl:px-20 mx-auto xl:pt-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Image
               src={logo}
@@ -137,14 +137,6 @@ export default function HomePage() {
               className="drop-shadow-lg"
               priority
             />
-            <div className="leading-tight">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">
-                Battle of the
-              </p>
-              <p className="text-xl font-semibold text-amber-300 hero-display">
-                Knights
-              </p>
-            </div>
           </div>
 
           <div className="hidden lg:flex items-center gap-10 text-sm font-semibold">
